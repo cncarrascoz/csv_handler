@@ -25,8 +25,6 @@ install_manifest.txt
 # Executables (including our specific ones)
 *.exe
 *.out
-server
-client
 
 # Optional: Generated Proto/gRPC files
 # If your build system automatically generates these, uncomment the lines below.
