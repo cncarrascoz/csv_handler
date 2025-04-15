@@ -1,0 +1,53 @@
+# CMake build artifacts
+build/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+CPackConfig.cmake
+CPackSourceConfig.cmake
+_CPack_Packages/
+install_manifest.txt
+
+# Compiled Object files
+*.o
+*.obj
+
+# Compiled Static libraries
+*.a
+
+# Compiled Shared libraries (macOS, Linux, Windows)
+*.dylib
+*.so
+*.dll
+
+# Executables (including our specific ones)
+*.exe
+*.out
+server
+client
+
+# Optional: Generated Proto/gRPC files
+# If your build system automatically generates these, uncomment the lines below.
+# According to the current README.md, these are generated manually and checked in.
+# proto/*.pb.cc
+# proto/*.pb.h
+# proto/*.grpc.pb.cc
+# proto/*.grpc.pb.h
+
+# IDE / Editor specific files
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln.docstates
+
+# OS specific files
+.DS_Store
+*~
+Thumbs.db
+
+# Log files
+*.log
