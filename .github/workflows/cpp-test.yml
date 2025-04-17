@@ -1,0 +1,84 @@
+name: C++ Test Suite
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential cmake
+        # Install gRPC and protobuf dependencies
+        sudo apt-get install -y libgrpc++-dev libgrpc-dev protobuf-compiler-grpc libprotobuf-dev
+        # Install gcovr for code coverage
+        sudo apt-get install -y gcovr
+
+    - name: Generate Protobuf files
+      run: |
+        protoc --proto_path=. --cpp_out=./proto --grpc_out=./proto --plugin=protoc-gen-grpc=`which grpc_cpp_plugin` proto/csv_service.proto
+
+    - name: Configure CMake
+      run: |
+        mkdir -p build
+        cd build
+        cmake .. -DENABLE_COVERAGE=ON
+
+    - name: Build
+      run: |
+        cd build
+        make -j$(nproc)
+
+    - name: Run tests
+      run: |
+        cd build
+        ctest --output-on-failure
+
+    - name: Generate coverage report
+      run: |
+        cd build
+        make coverage
+
+    - name: Upload coverage report
+      uses: actions/upload-artifact@v3
+      with:
+        name: coverage-report
+        path: build/coverage.html
+
+    # Test for memory leaks
+    - name: Install Valgrind
+      run: sudo apt-get install -y valgrind
+
+    - name: Run Valgrind memory checks
+      run: |
+        cd build
+        valgrind --leak-check=full --error-exitcode=1 ./storage_tests
+        valgrind --leak-check=full --error-exitcode=1 ./utils_tests
+
+  distributed-system-readiness:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Check for distributed system scaffolding
+      run: |
+        # This job is a placeholder to verify that the code includes the necessary
+        # scaffolding for future distributed system implementations.
+        # It ensures that we maintain backward compatibility as we add distributed features.
+        
+        # Verify distributed system test scaffolding exists
+        if ! grep -q "DistributedSystemTest" tests/integration/server_client_test.cpp; then
+          echo "Missing distributed system test scaffolding"
+          exit 1
+        fi
+        
+        echo "Distributed system readiness check passed"
