@@ -6,9 +6,14 @@
 
 #include <unordered_map>
 #include <memory>
+#include <mutex>
+#include <shared_mutex>
 
 class CsvServiceImpl final : public csvservice::CsvService::Service {
 public:
+    // Use a shared_mutex for reader-writer lock pattern
+    // Multiple clients can read simultaneously, but writes are exclusive
+    mutable std::shared_mutex files_mutex;
     std::unordered_map<std::string, ColumnStore> loaded_files;
 
     grpc::Status UploadCsv(

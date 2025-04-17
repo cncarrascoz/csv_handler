@@ -13,7 +13,11 @@ Status CsvServiceImpl::UploadCsv(
     std::string csv_data(request->csv_data());
     
     ColumnStore column_store = csv::parse_csv(csv_data);
+    
+    // Exclusive lock for writing
+    std::unique_lock<std::shared_mutex> lock(files_mutex);
     loaded_files[filename] = column_store;
+    lock.unlock();
     
     response->set_success(true);
     response->set_message("CSV file loaded successfully in column-store format");
@@ -29,6 +33,8 @@ Status CsvServiceImpl::ListLoadedFiles(
     const csvservice::Empty* request,
     csvservice::CsvFileList* response) {
     
+    // Shared lock for reading
+    std::shared_lock<std::shared_mutex> lock(files_mutex);
     for (const auto& entry : loaded_files) {
         response->add_filenames(entry.first);
     }
@@ -42,9 +48,13 @@ Status CsvServiceImpl::ViewFile(
     csvservice::ViewFileResponse* response) {
     
     const std::string& filename = request->filename();
+    
+    // Shared lock for reading
+    std::shared_lock<std::shared_mutex> lock(files_mutex);
     auto it = loaded_files.find(filename);
     
     if (it == loaded_files.end()) {
+        lock.unlock();
         response->set_success(false);
         response->set_message("File not found");
         return Status::OK;
@@ -81,6 +91,7 @@ Status CsvServiceImpl::ViewFile(
             }
         }
     }
+    lock.unlock();
     
     return Status::OK;
 }
@@ -93,8 +104,11 @@ Status CsvServiceImpl::ComputeSum(
     const std::string& filename = request->filename();
     const std::string& column_name = request->column_name();
     
+    // Shared lock for reading
+    std::shared_lock<std::shared_mutex> lock(files_mutex);
     auto it = loaded_files.find(filename);
     if (it == loaded_files.end()) {
+        lock.unlock();
         response->set_success(false);
         response->set_message("File not found");
         return Status::OK;
@@ -103,10 +117,12 @@ Status CsvServiceImpl::ComputeSum(
     const ColumnStore& store = it->second;
     try {
         double sum = compute_sum(store, column_name);
+        lock.unlock();
         response->set_success(true);
         response->set_message("Sum computed successfully");
         response->set_value(sum);
     } catch (const std::exception& e) {
+        lock.unlock();
         response->set_success(false);
         response->set_message(e.what());
     }
@@ -122,8 +138,11 @@ Status CsvServiceImpl::ComputeAverage(
     const std::string& filename = request->filename();
     const std::string& column_name = request->column_name();
     
+    // Shared lock for reading
+    std::shared_lock<std::shared_mutex> lock(files_mutex);
     auto it = loaded_files.find(filename);
     if (it == loaded_files.end()) {
+        lock.unlock();
         response->set_success(false);
         response->set_message("File not found");
         return Status::OK;
@@ -132,10 +151,12 @@ Status CsvServiceImpl::ComputeAverage(
     const ColumnStore& store = it->second;
     try {
         double avg = compute_average(store, column_name);
+        lock.unlock();
         response->set_success(true);
         response->set_message("Average computed successfully");
         response->set_value(avg);
     } catch (const std::exception& e) {
+        lock.unlock();
         response->set_success(false);
         response->set_message(e.what());
     }
@@ -149,9 +170,13 @@ Status CsvServiceImpl::InsertRow(
     csvservice::ModificationResponse* response) {
     
     const std::string& filename = request->filename();
+    
+    // Exclusive lock for writing
+    std::unique_lock<std::shared_mutex> lock(files_mutex);
     auto it = loaded_files.find(filename);
     
     if (it == loaded_files.end()) {
+        lock.unlock();
         response->set_success(false);
         response->set_message("File not found");
         return Status::OK;
@@ -166,9 +191,11 @@ Status CsvServiceImpl::InsertRow(
     
     try {
         insert_row(store, values);
+        lock.unlock();
         response->set_success(true);
         response->set_message("Row inserted successfully");
     } catch (const std::exception& e) {
+        lock.unlock();
         response->set_success(false);
         response->set_message(e.what());
     }
@@ -184,9 +211,12 @@ Status CsvServiceImpl::DeleteRow(
     const std::string& filename = request->filename();
     int row_index = request->row_index();
     
+    // Exclusive lock for writing
+    std::unique_lock<std::shared_mutex> lock(files_mutex);
     auto it = loaded_files.find(filename);
     
     if (it == loaded_files.end()) {
+        lock.unlock();
         response->set_success(false);
         response->set_message("File not found");
         return Status::OK;
@@ -196,9 +226,11 @@ Status CsvServiceImpl::DeleteRow(
     
     try {
         delete_row(store, row_index);
+        lock.unlock();
         response->set_success(true);
         response->set_message("Row deleted successfully");
     } catch (const std::exception& e) {
+        lock.unlock();
         response->set_success(false);
         response->set_message(e.what());
     }

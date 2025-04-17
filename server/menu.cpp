@@ -104,6 +104,10 @@ bool handleList(const std::vector<std::string>& tokens, CsvServiceImpl& service)
     }
     
     std::cout << "\nLoaded files:\n";
+    
+    // Acquire shared lock for reading
+    std::shared_lock<std::shared_mutex> lock(service.files_mutex);
+    
     if (service.loaded_files.empty()) {
         std::cout << "  (None)" << std::endl;
         return true;
@@ -130,6 +134,9 @@ bool handleStats(const std::vector<std::string>& tokens, CsvServiceImpl& service
     if (!ServerMenu::checkArgCount(tokens, 0, 1)) {
         return true;
     }
+    
+    // Acquire shared lock for reading
+    std::shared_lock<std::shared_mutex> lock(service.files_mutex);
     
     // If a specific file is mentioned, show detailed stats for just that file
     if (tokens.size() > 1) {
