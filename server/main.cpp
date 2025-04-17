@@ -1,11 +1,12 @@
-// server/main.cpp: Minimal main entry point for the gRPC server.
+// server/main.cpp: Main entry point for the gRPC server.
 #include <iostream>
 #include <memory>
 #include <string>
 #include <grpcpp/grpcpp.h>
 
-// Include the service implementation header
+// Include the service implementation header and menu system
 #include "network/csv_service_impl.hpp"
+#include "menu.hpp"
 
 using grpc::Server;
 using grpc::ServerBuilder;
@@ -23,38 +24,28 @@ void RunServer(const std::string& server_address) {
     std::unique_ptr<Server> server(builder.BuildAndStart());
     std::cout << "Server listening on " << server_address << std::endl;
     
-    // Simple command interface
-    while (true) {
-        std::cout << "\nServer commands:\n";
-        std::cout << "1. list - List loaded files\n";
-        std::cout << "2. exit - Shutdown server\n";
-        std::cout << "> ";
+    // Create the menu system
+    auto menu = server::createServerMenu();
+    
+    // Simple command interface with new menu system
+    std::string command;
+    bool continue_loop = true;
+    
+    while (continue_loop) {
+        menu->displayMenu();
         
-        std::string command;
-        std::getline(std::cin, command);
-        
-        if (command == "list") {
-            std::cout << "\nLoaded files:\n";
-            for (const auto& entry : service.loaded_files) {
-                if (!entry.second.column_names.empty()) {
-                    auto it = entry.second.columns.find(entry.second.column_names[0]);
-                    if (it != entry.second.columns.end() && !it->second.empty()) {
-                        std::cout << "- " << entry.first << " (";
-                        std::cout << entry.second.column_names.size() << " columns, ";
-                        std::cout << it->second.size() << " rows)\n";
-                    } else {
-                        std::cout << "- " << entry.first << " (0 rows)\n";
-                    }
-                } else {
-                    std::cout << "- " << entry.first << " (0 rows)\n";
-                }
-            }
-        } else if (command == "exit") {
-            break;
+        if (!std::getline(std::cin, command)) {
+            break; // Handle EOF or input error
         }
+        
+        // Process the command using the menu system
+        continue_loop = menu->processCommand(command, service);
     }
     
+    // Shutdown initiated by command or by user exiting
+    std::cout << "Shutting down server..." << std::endl;
     server->Shutdown();
+    std::cout << "Server shutdown complete." << std::endl;
 }
 
 int main(int argc, char** argv) {

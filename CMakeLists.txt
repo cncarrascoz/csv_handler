@@ -29,12 +29,14 @@ include_directories(
 add_executable(server
     server/main.cpp
     server/network/csv_service_impl.cpp
+    server/menu.cpp
     storage/csv_parser.cpp
+    storage/column_store.cpp
     utils/file_utils.cpp
 )
 
 target_link_libraries(server
-    csv_handler_cc_proto # Link the library containing compiled generated code
+    csv_handler_cc_proto
     gRPC::grpc++
     gRPC::grpc
     protobuf::libprotobuf
@@ -44,11 +46,12 @@ target_link_libraries(server
 add_executable(client
     client/main.cpp
     client/csv_client.cpp
+    client/menu.cpp
     utils/file_utils.cpp
 )
 
 target_link_libraries(client
-    csv_handler_cc_proto # Link the library containing compiled generated code
+    csv_handler_cc_proto
     gRPC::grpc++
     gRPC::grpc
     protobuf::libprotobuf

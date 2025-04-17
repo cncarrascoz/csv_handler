@@ -4,10 +4,19 @@ syntax = "proto3";
 package csvservice;
 
 service CsvService {
+  // Existing RPCs
   rpc UploadCsv (CsvUploadRequest) returns (CsvUploadResponse);
   rpc ListLoadedFiles (Empty) returns (CsvFileList);
+  
+  // New RPCs for extended functionality
+  rpc ViewFile (ViewFileRequest) returns (ViewFileResponse);
+  rpc ComputeSum (ColumnOperationRequest) returns (NumericResponse);
+  rpc ComputeAverage (ColumnOperationRequest) returns (NumericResponse);
+  rpc InsertRow (InsertRowRequest) returns (ModificationResponse);
+  rpc DeleteRow (DeleteRowRequest) returns (ModificationResponse);
 }
 
+// Existing messages
 message CsvUploadRequest {
   string filename = 1;
   bytes csv_data = 2;
@@ -25,3 +34,45 @@ message CsvFileList {
 }
 
 message Empty {}
+
+// New messages for extended functionality
+message ViewFileRequest {
+  string filename = 1;
+}
+
+message ViewFileResponse {
+  bool success = 1;
+  string message = 2;
+  repeated string column_names = 3;
+  repeated Row rows = 4;
+}
+
+message Row {
+  repeated string values = 1;
+}
+
+message ColumnOperationRequest {
+  string filename = 1;
+  string column_name = 2;
+}
+
+message NumericResponse {
+  bool success = 1;
+  string message = 2;
+  double value = 3;
+}
+
+message InsertRowRequest {
+  string filename = 1;
+  repeated string values = 2;
+}
+
+message DeleteRowRequest {
+  string filename = 1;
+  int32 row_index = 2;
+}
+
+message ModificationResponse {
+  bool success = 1;
+  string message = 2;
+}

@@ -20,4 +20,30 @@ public:
         grpc::ServerContext* context,
         const csvservice::Empty* request,
         csvservice::CsvFileList* response) override;
+        
+    // New RPCs to handle extended functionality
+    grpc::Status ViewFile(
+        grpc::ServerContext* context, 
+        const csvservice::ViewFileRequest* request,
+        csvservice::ViewFileResponse* response) override;
+        
+    grpc::Status ComputeSum(
+        grpc::ServerContext* context,
+        const csvservice::ColumnOperationRequest* request,
+        csvservice::NumericResponse* response) override;
+        
+    grpc::Status ComputeAverage(
+        grpc::ServerContext* context,
+        const csvservice::ColumnOperationRequest* request,
+        csvservice::NumericResponse* response) override;
+        
+    grpc::Status InsertRow(
+        grpc::ServerContext* context,
+        const csvservice::InsertRowRequest* request,
+        csvservice::ModificationResponse* response) override;
+        
+    grpc::Status DeleteRow(
+        grpc::ServerContext* context,
+        const csvservice::DeleteRowRequest* request,
+        csvservice::ModificationResponse* response) override;
 };
