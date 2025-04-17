@@ -4,6 +4,8 @@
 #include <sstream>
 #include <iomanip>
 #include <algorithm>
+#include <array>
+#include <memory>
 
 namespace server {
 
@@ -104,6 +106,10 @@ bool handleList(const std::vector<std::string>& tokens, CsvServiceImpl& service)
     }
     
     std::cout << "\nLoaded files:\n";
+    
+    // Acquire shared lock for reading
+    std::shared_lock<std::shared_mutex> lock(service.files_mutex);
+    
     if (service.loaded_files.empty()) {
         std::cout << "  (None)" << std::endl;
         return true;
@@ -130,6 +136,9 @@ bool handleStats(const std::vector<std::string>& tokens, CsvServiceImpl& service
     if (!ServerMenu::checkArgCount(tokens, 0, 1)) {
         return true;
     }
+    
+    // Acquire shared lock for reading
+    std::shared_lock<std::shared_mutex> lock(service.files_mutex);
     
     // If a specific file is mentioned, show detailed stats for just that file
     if (tokens.size() > 1) {
@@ -186,6 +195,55 @@ bool handleStats(const std::vector<std::string>& tokens, CsvServiceImpl& service
     return true;
 }
 
+bool handleIpAddress(const std::vector<std::string>& tokens, CsvServiceImpl& service) {
+    if (!ServerMenu::checkArgCount(tokens, 0, 0)) {
+        return true;
+    }
+    
+    std::cout << "\nServer Network Information:\n";
+    
+    // Run the hostname command to get the machine name
+    std::array<char, 128> buffer;
+    std::string hostname_result;
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen("hostname", "r"), pclose);
+    if (!pipe) {
+        std::cerr << "Error executing hostname command." << std::endl;
+    } else {
+        while (fgets(buffer.data(), buffer.size(), pipe.get()) != nullptr) {
+            hostname_result += buffer.data();
+        }
+        // Remove trailing newline
+        if (!hostname_result.empty() && hostname_result[hostname_result.length()-1] == '\n') {
+            hostname_result.erase(hostname_result.length()-1);
+        }
+        std::cout << "  Hostname: " << hostname_result << std::endl;
+    }
+    
+    // Run the ifconfig/ip command to get IP addresses
+    std::string ip_result;
+    #ifdef _WIN32
+    std::unique_ptr<FILE, decltype(&pclose)> ip_pipe(popen("ipconfig", "r"), pclose);
+    #else
+    std::unique_ptr<FILE, decltype(&pclose)> ip_pipe(popen("ifconfig 2>/dev/null || ip addr", "r"), pclose);
+    #endif
+    
+    if (!ip_pipe) {
+        std::cerr << "Error executing network command." << std::endl;
+    } else {
+        while (fgets(buffer.data(), buffer.size(), ip_pipe.get()) != nullptr) {
+            ip_result += buffer.data();
+        }
+        
+        std::cout << "\n  Network Interfaces:\n" << ip_result << std::endl;
+    }
+    
+    std::cout << "\n  Server is listening on port 50051\n";
+    std::cout << "  Clients can connect using: <IP_ADDRESS>:50051\n";
+    std::cout << "  For local connections use: localhost:50051\n";
+    
+    return true;
+}
+
 bool handleExit(const std::vector<std::string>& tokens, CsvServiceImpl& service) {
     if (!ServerMenu::checkArgCount(tokens, 0, 0)) {
         return true;
@@ -199,6 +257,7 @@ bool handleHelp(const std::vector<std::string>& tokens, CsvServiceImpl& service)
     std::cout << "Available server commands:" << std::endl;
     std::cout << "  list               - List all loaded files with basic info" << std::endl;
     std::cout << "  stats [filename]   - Show statistics for all files or a specific file" << std::endl;
+    std::cout << "  ip                 - Display server IP address information for client connections" << std::endl;
     std::cout << "  exit               - Shutdown the server" << std::endl;
     std::cout << "  help               - Display this help message" << std::endl;
     return true;
@@ -209,15 +268,12 @@ bool handleHelp(const std::vector<std::string>& tokens, CsvServiceImpl& service)
 std::unique_ptr<ServerMenu> createServerMenu() {
     auto menu = std::make_unique<ServerMenu>();
     
-    // Register all command handlers
-    menu->registerCommand("list", commands::handleList,
-                        "List all loaded files");
-    menu->registerCommand("stats", commands::handleStats,
-                        "Show statistics for files");
-    menu->registerCommand("exit", commands::handleExit,
-                        "Shutdown server");
-    menu->registerCommand("help", commands::handleHelp,
-                        "Display help information");
+    // Register commands with their handlers
+    menu->registerCommand("list", commands::handleList, "List all loaded files");
+    menu->registerCommand("stats", commands::handleStats, "Show statistics for files");
+    menu->registerCommand("ip", commands::handleIpAddress, "Display IP address information");
+    menu->registerCommand("exit", commands::handleExit, "Shutdown server");
+    menu->registerCommand("help", commands::handleHelp, "Display help information");
     
     return menu;
 }

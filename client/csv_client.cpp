@@ -21,8 +21,15 @@ bool CsvClient::UploadCsv(const std::string& filename) {
         return false;
     }
 
+    // Extract just the base filename from the path
+    std::string base_filename = filename;
+    size_t last_slash_pos = filename.find_last_of("/\\");
+    if (last_slash_pos != std::string::npos) {
+        base_filename = filename.substr(last_slash_pos + 1);
+    }
+
     CsvUploadRequest request;
-    request.set_filename(filename); // Use base filename or full path?
+    request.set_filename(base_filename); // Use only the base filename
     request.set_csv_data(file_contents);
 
     CsvUploadResponse response;

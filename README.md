@@ -172,41 +172,58 @@ csv_handler/
         ```bash
         ./server
         ```
-    *   The server will start listening on `localhost:50051` (or the configured address) and show its command menu.
+    *   The server will start listening on `0.0.0.0:50051` (all network interfaces) and show its command menu.
     *   You can use server commands like `list` to see loaded files or `stats` to view statistics.
+    *   Use the new `ip` command to display the server's IP address for remote client connections.
 
 2.  **Run the Client:**
     *   The client can be run in two modes from the `build` directory.
     *   **Command-Line Mode:**
         *   Execute specific commands directly:
             ```bash
-            ./client localhost:50051 upload ../data/test_data.csv
-            ./client localhost:50051 list
-            ./client localhost:50051 view test_data.csv
-            ./client localhost:50051 sum test_data.csv Value2
+            ./client <server_address> <command> [arguments]
             ```
+            Example: `./client localhost:50051 list`
     *   **Interactive Mode:**
-        *   Start the client with only the server address:
+        *   Start an interactive session:
             ```bash
-            ./client localhost:50051
+            ./client <server_address>
             ```
-        *   You will be presented with a menu of available commands:
-            ```
-            Client commands:
-            1. avg     - Calculate average of values in a column
-            2. delete  - Delete a row from a file
-            3. exit    - Exit the program
-            4. help    - Display help information
-            5. insert  - Insert a new row into a file
-            6. list    - List all files on the server
-            7. sum     - Calculate sum of values in a column
-            8. upload  - Upload a CSV file to the server
-            9. view    - View the contents of a file
-            > 
-            ```
-        *   Type commands such as `upload ../data/test_data.csv`, `list`, or `view test_data.csv`.
+            Example: `./client localhost:50051`
 
-## 8. Example CSV Format and Operations
+## 8. Distributed Usage
+
+The system supports multiple clients connecting to a single server, even from different machines on the same network.
+
+1.  **Server Setup:**
+    *   Start the server on the host machine:
+        ```bash
+        ./server
+        ```
+    *   Use the `ip` command in the server menu to display the server's IP address.
+    *   Make note of the IP address (e.g., 192.168.1.100) to use for client connections.
+    *   Ensure that port 50051 is not blocked by any firewall.
+
+2.  **Client Connection from Another Machine:**
+    *   On a different machine, build the client using the same build instructions.
+    *   Connect to the remote server using its IP address:
+        ```bash
+        ./client 192.168.1.100:50051
+        ```
+        (Replace with the actual IP address of the server)
+
+3.  **Collaborative Features:**
+    *   All clients connect to the same server and share the same data.
+    *   When one client uploads a CSV file or makes changes (insert/delete rows), those changes are immediately visible to all other connected clients.
+    *   Use the `list` command to see all available files on the server.
+    *   Use the `view <filename>` command to see the current state of any file.
+
+4.  **Network Considerations:**
+    *   Both machines must be on the same network or have appropriate routing configured.
+    *   For connections across different networks, you may need to set up port forwarding on your router.
+    *   For security in production environments, consider implementing authentication and encryption.
+
+## 9. Example CSV Format and Operations
 
 The system works with standard CSV format, primarily designed for numerical data:
 
@@ -254,7 +271,7 @@ ID,Value1,Value2
    > delete test_data.csv 2
    ```
 
-## 9. Server Internals: Parsing and Storage
+## 10. Server Internals: Parsing and Storage
 
 ### Column Store Structure
 
@@ -277,7 +294,7 @@ The system provides these operations on the column store:
 - `insert_row`: Add a new row to the store
 - `delete_row`: Remove a row from the store
 
-## 10. Architecture and Design Patterns
+## 11. Architecture and Design Patterns
 
 The project follows these key architectural principles:
 
@@ -304,7 +321,7 @@ The project follows these key architectural principles:
 
 This architecture facilitates the future addition of distributed features (e.g., automatic CSV reprinting when files change) with minimal refactoring.
 
-## 11. Future Distributed Version
+## 12. Future Distributed Version
 
 The current modular structure is designed to facilitate future expansion into a distributed system. Potential future components include:
 

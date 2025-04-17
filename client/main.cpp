@@ -14,6 +14,14 @@ void show_usage(const std::string& name) {
               << std::endl << std::endl
               << "If only <server_address> is provided, enters interactive mode."
               << std::endl << std::endl
+              << "Server address format: <IP_ADDRESS>:50051"
+              << std::endl
+              << "  - For local connections: localhost:50051"
+              << std::endl
+              << "  - For remote connections: 192.168.1.X:50051 (replace with actual IP)"
+              << std::endl
+              << "  - Ask the server administrator to run the 'ip' command to get the correct address"
+              << std::endl << std::endl
               << "Commands (command-line or interactive):"
               << std::endl
               << "  upload <filename>                - Upload a CSV file"
@@ -54,6 +62,7 @@ int main(int argc, char** argv) {
 
     if (argc == 2) {
         // --- Interactive Mode --- 
+        std::cout << "Connected to server at " << server_address << std::endl;
         std::cout << "Entered interactive mode." << std::endl;
         std::string user_command;
         
