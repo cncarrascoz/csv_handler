@@ -76,23 +76,24 @@ void CsvClient::ViewFile(const std::string& filename) {
     
     if (status.ok()) {
         if (response.success()) {
-            std::cout << "Contents of file '" << filename << "':" << std::endl;
-            
-            // Print header (column names)
+            // Convert protobuf data to format needed by format_csv_as_table
+            std::vector<std::string> column_names;
             for (int i = 0; i < response.column_names_size(); ++i) {
-                if (i > 0) std::cout << ",";
-                std::cout << response.column_names(i);
+                column_names.push_back(response.column_names(i));
             }
-            std::cout << std::endl;
             
-            // Print each row
-            for (const auto& row : response.rows()) {
-                for (int i = 0; i < row.values_size(); ++i) {
-                    if (i > 0) std::cout << ",";
-                    std::cout << row.values(i);
+            std::vector<std::vector<std::string>> rows;
+            for (const auto& row_proto : response.rows()) {
+                std::vector<std::string> row;
+                for (int i = 0; i < row_proto.values_size(); ++i) {
+                    row.push_back(row_proto.values(i));
                 }
-                std::cout << std::endl;
+                rows.push_back(row);
             }
+            
+            // Use the new table formatting function
+            std::string formatted_table = file_utils::format_csv_as_table(column_names, rows);
+            std::cout << formatted_table;
         } else {
             std::cerr << "Failed to view file: " << response.message() << std::endl;
         }

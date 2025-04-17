@@ -122,7 +122,7 @@ csv_handler/
 2.  **Configure with CMake:**
     *   Create a build directory and navigate into it:
         ```bash
-        mkdir build
+        mkdir -p build
         cd build
         ```
     *   Run CMake to configure the project:
@@ -136,6 +136,34 @@ csv_handler/
         make
         ```
     *   This will create the `server` and `client` executables in the `build` directory.
+
+4.  **Clean Build (if needed):**
+    *   To clean the build and start fresh:
+        ```bash
+        # From the build directory
+        make clean
+        
+        # For a complete clean (removing all CMake-generated files)
+        cd ..
+        rm -rf build
+        mkdir build
+        cd build
+        cmake ..
+        make
+        ```
+
+5.  **Rebuild After Changes:**
+    *   After making changes to source files, simply run:
+        ```bash
+        # From the build directory
+        make
+        ```
+    *   If you've added new source files or changed the CMakeLists.txt:
+        ```bash
+        # From the build directory
+        cmake ..
+        make
+        ```
 
 ## 7. Running the Application
 
@@ -196,9 +224,19 @@ ID,Value1,Value2
    > upload ../data/test_data.csv
    ```
 
-2. **View:** Display the contents of a stored file:
+2. **View:** Display the contents of a stored file in a formatted table:
    ```
    > view test_data.csv
+   ```
+   Output:
+   ```
+   +------+----------+----------+
+   |  ID  |  Value1  |  Value2  |
+   +------+----------+----------+
+   |  1   |  30      |  50000   |
+   |  2   |  25      |  60000   |
+   |  3   |  35      |  70000   |
+   +------+----------+----------+
    ```
 
 3. **Analyze:** Perform calculations on columns:
@@ -250,11 +288,19 @@ The project follows these key architectural principles:
    - `csv_client.cpp/hpp` & `csv_service_impl.cpp/hpp`: Network communication
    - `column_store.cpp/hpp`: Data storage and analytics
    - `csv_parser.cpp/hpp`: Parsing and data conversion
+   - `file_utils.cpp/hpp`: File handling and output formatting
 
 3. **Extensibility**: New commands can be added by:
    - Creating new handler functions
    - Registering them with the menu system
    - Implementing any required backend logic
+
+4. **User Interface Enhancements**:
+   - Table formatting for CSV data display with:
+     - Plus signs (+) at corners and intersections
+     - Dashes (-) for horizontal borders
+     - Vertical bars (|) for column separators
+     - Proper spacing and alignment of data
 
 This architecture facilitates the future addition of distributed features (e.g., automatic CSV reprinting when files change) with minimal refactoring.
 
