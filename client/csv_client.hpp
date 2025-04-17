@@ -14,6 +14,13 @@ using csvservice::CsvUploadRequest;
 using csvservice::CsvUploadResponse;
 using csvservice::Empty;
 using csvservice::CsvFileList;
+using csvservice::ViewFileRequest;
+using csvservice::ViewFileResponse;
+using csvservice::ColumnOperationRequest;
+using csvservice::NumericResponse;
+using csvservice::InsertRowRequest;
+using csvservice::DeleteRowRequest;
+using csvservice::ModificationResponse;
 
 class CsvClient {
 public:
@@ -26,6 +33,21 @@ public:
     // Requests a list of loaded filenames from the server.
     // Prints the list to stdout.
     void ListFiles();
+    
+    // Retrieves and displays the content of a file stored on the server.
+    void ViewFile(const std::string& filename);
+    
+    // Requests the server to compute the sum of values in a column.
+    void ComputeSum(const std::string& filename, const std::string& column_name);
+    
+    // Requests the server to compute the average of values in a column.
+    void ComputeAverage(const std::string& filename, const std::string& column_name);
+    
+    // Sends a new row to append to a file on the server.
+    void InsertRow(const std::string& filename, const std::string& comma_separated_values);
+    
+    // Requests deletion of a specific row from a file on the server.
+    void DeleteRow(const std::string& filename, int row_index);
 
 private:
     std::unique_ptr<CsvService::Stub> stub_;

@@ -1,0 +1,225 @@
+// server/menu.cpp: Implementation of the server menu system
+#include "menu.hpp"
+#include <iostream>
+#include <sstream>
+#include <iomanip>
+#include <algorithm>
+
+namespace server {
+
+ServerMenu::ServerMenu() {}
+
+void ServerMenu::registerCommand(const std::string& command, CommandHandler handler, 
+                               const std::string& description) {
+    command_handlers_[command] = {handler, description};
+}
+
+bool ServerMenu::processCommand(const std::string& command_line, CsvServiceImpl& service) {
+    if (command_line.empty()) {
+        return true; // Empty command line, nothing to do
+    }
+    
+    auto tokens = tokenizeCommand(command_line);
+    if (tokens.empty()) {
+        return true; // No tokens, nothing to do
+    }
+    
+    const std::string& command = tokens[0];
+    auto it = command_handlers_.find(command);
+    
+    if (it == command_handlers_.end()) {
+        std::cerr << "Error: Unknown command '" << command << "'." << std::endl;
+        std::cout << "Type 'help' for a list of available commands." << std::endl;
+        return true;
+    }
+    
+    return it->second.handler(tokens, service);
+}
+
+void ServerMenu::displayMenu() const {
+    std::cout << "\nServer commands:\n";
+    
+    // Calculate the maximum command length for alignment
+    size_t max_cmd_length = 0;
+    for (const auto& entry : command_handlers_) {
+        max_cmd_length = std::max(max_cmd_length, entry.first.length());
+    }
+    
+    // Convert map to vector for sorting
+    std::vector<std::pair<std::string, CommandInfo>> sorted_cmds(
+        command_handlers_.begin(), command_handlers_.end());
+    
+    // Sort alphabetically by command name
+    std::sort(sorted_cmds.begin(), sorted_cmds.end(), 
+              [](const auto& a, const auto& b) { return a.first < b.first; });
+    
+    // Display each command with its description
+    int i = 1;
+    for (const auto& [cmd, info] : sorted_cmds) {
+        std::cout << i << ". " << std::left << std::setw(max_cmd_length + 2) 
+                  << cmd << "- " << info.description << std::endl;
+        i++;
+    }
+    
+    std::cout << "> ";
+}
+
+std::vector<std::string> ServerMenu::tokenizeCommand(const std::string& command_line) {
+    std::vector<std::string> tokens;
+    std::istringstream iss(command_line);
+    std::string token;
+    
+    while (iss >> token) {
+        tokens.push_back(token);
+    }
+    
+    return tokens;
+}
+
+bool ServerMenu::checkArgCount(const std::vector<std::string>& tokens, 
+                             size_t min_args, size_t max_args) {
+    if (tokens.size() - 1 < min_args) {
+        std::cerr << "Error: Command '" << tokens[0] 
+                  << "' requires at least " << min_args << " argument(s)." 
+                  << std::endl;
+        return false;
+    }
+    
+    if (tokens.size() - 1 > max_args) {
+        std::cerr << "Error: Command '" << tokens[0] 
+                  << "' accepts at most " << max_args << " argument(s)." 
+                  << std::endl;
+        return false;
+    }
+    
+    return true;
+}
+
+// Individual command handlers
+namespace commands {
+
+bool handleList(const std::vector<std::string>& tokens, CsvServiceImpl& service) {
+    if (!ServerMenu::checkArgCount(tokens, 0, 0)) {
+        return true;
+    }
+    
+    std::cout << "\nLoaded files:\n";
+    if (service.loaded_files.empty()) {
+        std::cout << "  (None)" << std::endl;
+        return true;
+    }
+    
+    for (const auto& entry : service.loaded_files) {
+        if (!entry.second.column_names.empty()) {
+            auto it = entry.second.columns.find(entry.second.column_names[0]);
+            if (it != entry.second.columns.end() && !it->second.empty()) {
+                std::cout << "- " << entry.first << " (";
+                std::cout << entry.second.column_names.size() << " columns, ";
+                std::cout << it->second.size() << " rows)\n";
+            } else {
+                std::cout << "- " << entry.first << " (0 rows)\n";
+            }
+        } else {
+            std::cout << "- " << entry.first << " (0 rows)\n";
+        }
+    }
+    return true;
+}
+
+bool handleStats(const std::vector<std::string>& tokens, CsvServiceImpl& service) {
+    if (!ServerMenu::checkArgCount(tokens, 0, 1)) {
+        return true;
+    }
+    
+    // If a specific file is mentioned, show detailed stats for just that file
+    if (tokens.size() > 1) {
+        const std::string& filename = tokens[1];
+        auto it = service.loaded_files.find(filename);
+        if (it == service.loaded_files.end()) {
+            std::cerr << "Error: File '" << filename << "' not found." << std::endl;
+            return true;
+        }
+        
+        const auto& column_store = it->second;
+        std::cout << "\nDetailed stats for '" << filename << "':\n";
+        std::cout << "  Columns (" << column_store.column_names.size() << "):\n";
+        
+        // Calculate the maximum column name length for alignment
+        size_t max_col_name_length = 0;
+        for (const auto& col_name : column_store.column_names) {
+            max_col_name_length = std::max(max_col_name_length, col_name.length());
+        }
+        
+        // Show stats for each column
+        for (const auto& col_name : column_store.column_names) {
+            auto col_it = column_store.columns.find(col_name);
+            if (col_it != column_store.columns.end()) {
+                std::cout << "    " << std::left << std::setw(max_col_name_length + 2) 
+                          << col_name << ": " << col_it->second.size() 
+                          << " values" << std::endl;
+            }
+        }
+    } else {
+        // Show basic stats for all files
+        std::cout << "\nServer Statistics:\n";
+        std::cout << "  Total files loaded: " << service.loaded_files.size() << std::endl;
+        
+        size_t total_columns = 0, total_rows = 0;
+        for (const auto& entry : service.loaded_files) {
+            const auto& column_store = entry.second;
+            total_columns += column_store.column_names.size();
+            
+            // Assuming all columns have the same number of rows, use the first column
+            if (!column_store.column_names.empty()) {
+                const auto& col_name = column_store.column_names[0];
+                auto col_it = column_store.columns.find(col_name);
+                if (col_it != column_store.columns.end()) {
+                    total_rows += col_it->second.size();
+                }
+            }
+        }
+        
+        std::cout << "  Total columns across all files: " << total_columns << std::endl;
+        std::cout << "  Total rows across all files: " << total_rows << std::endl;
+    }
+    
+    return true;
+}
+
+bool handleExit(const std::vector<std::string>& tokens, CsvServiceImpl& service) {
+    if (!ServerMenu::checkArgCount(tokens, 0, 0)) {
+        return true;
+    }
+    
+    std::cout << "Shutting down server..." << std::endl;
+    return false; // Signal to exit the command loop
+}
+
+bool handleHelp(const std::vector<std::string>& tokens, CsvServiceImpl& service) {
+    std::cout << "Available server commands:" << std::endl;
+    std::cout << "  list               - List all loaded files with basic info" << std::endl;
+    std::cout << "  stats [filename]   - Show statistics for all files or a specific file" << std::endl;
+    std::cout << "  exit               - Shutdown the server" << std::endl;
+    std::cout << "  help               - Display this help message" << std::endl;
+    return true;
+}
+
+} // namespace commands
+
+std::unique_ptr<ServerMenu> createServerMenu() {
+    auto menu = std::make_unique<ServerMenu>();
+    
+    // Register all command handlers
+    menu->registerCommand("list", commands::handleList,
+                        "List all loaded files");
+    menu->registerCommand("stats", commands::handleStats,
+                        "Show statistics for files");
+    menu->registerCommand("exit", commands::handleExit,
+                        "Shutdown server");
+    menu->registerCommand("help", commands::handleHelp,
+                        "Display help information");
+    
+    return menu;
+}
+
+} // namespace server

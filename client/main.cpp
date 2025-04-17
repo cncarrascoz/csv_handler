@@ -1,25 +1,36 @@
-// client/main.cpp: Minimal main entry point for the gRPC client.
+// client/main.cpp: Main entry point for the gRPC client.
 #include <iostream>
 #include <memory>
 #include <string>
 #include <grpcpp/grpcpp.h>
 
-// Include the client class header
+// Include the client class and menu system
 #include "csv_client.hpp"
+#include "menu.hpp"
 
 // Function to print usage instructions
 void show_usage(const std::string& name) {
-    std::cerr << "Usage: " << name << " <server_address> [command] [filename]"
+    std::cerr << "Usage: " << name << " <server_address> [command] [arguments...]"
               << std::endl << std::endl
               << "If only <server_address> is provided, enters interactive mode."
               << std::endl << std::endl
               << "Commands (command-line or interactive):"
               << std::endl
-              << "  upload <filename>   Upload a CSV file"
+              << "  upload <filename>                - Upload a CSV file"
               << std::endl
-              << "  list              List files loaded on server"
+              << "  list                             - List files loaded on server"
               << std::endl
-              << "  exit              Exit interactive mode"
+              << "  view <filename>                  - View file contents"
+              << std::endl
+              << "  sum <filename> <column_name>     - Compute sum of column values"
+              << std::endl
+              << "  avg <filename> <column_name>     - Compute average of column values"
+              << std::endl
+              << "  insert <filename> <val1,val2...> - Insert a new row"
+              << std::endl
+              << "  delete <filename> <row_index>    - Delete a row"
+              << std::endl
+              << "  exit                             - Exit interactive mode"
               << std::endl;
 }
 
@@ -37,64 +48,37 @@ int main(int argc, char** argv) {
 
     // Create the client object
     CsvClient client(channel);
+    
+    // Create the menu system
+    auto menu = client::createClientMenu();
 
     if (argc == 2) {
         // --- Interactive Mode --- 
         std::cout << "Entered interactive mode." << std::endl;
         std::string user_command;
-        while (true) {
-            // Print the menu options each time
-            std::cout << "\nClient commands:\n";
-            std::cout << "1. upload <filename> - Upload a CSV file\n";
-            std::cout << "2. list              - List loaded files on server\n";
-            std::cout << "3. exit              - Exit client\n";
-            std::cout << "> ";
+        
+        // Main command loop
+        bool continue_loop = true;
+        while (continue_loop) {
+            menu->displayMenu();
+            
             if (!std::getline(std::cin, user_command)) {
                 break; // Handle EOF or input error
             }
-
-            if (user_command.rfind("upload ", 0) == 0) {
-                if (user_command.length() > 7) {
-                    std::string filename = user_command.substr(7);
-                    client.UploadCsv(filename);
-                } else {
-                    std::cerr << "Error: 'upload' command requires a filename." << std::endl;
-                }
-            } else if (user_command == "list") {
-                client.ListFiles();
-            } else if (user_command == "exit") {
-                std::cout << "Exiting interactive mode." << std::endl;
-                break;
-            } else if (user_command.empty()) {
-                // Ignore empty input
-            } else {
-                std::cerr << "Error: Unknown command '" << user_command << "'." << std::endl;
-                std::cout << "Available commands: upload <file>, list, exit" << std::endl;
-            }
+            
+            continue_loop = menu->processCommand(user_command, client);
         }
     } else {
         // --- Command-Line Mode --- 
-        std::string command = argv[2];
-        if (command == "upload") {
-            if (argc != 4) {
-                std::cerr << "Error: 'upload' command requires a filename." << std::endl;
-                show_usage(argv[0]);
-                return 1;
-            }
-            std::string filename = argv[3];
-            client.UploadCsv(filename);
-        } else if (command == "list") {
-            if (argc != 3) {
-                std::cerr << "Error: 'list' command does not take arguments." << std::endl;
-                show_usage(argv[0]);
-                return 1;
-            }
-            client.ListFiles();
-        } else {
-            std::cerr << "Error: Unknown command '" << command << "'." << std::endl;
-            show_usage(argv[0]);
-            return 1;
+        // Reconstruct the command and arguments from argv
+        std::string command_line;
+        for (int i = 2; i < argc; ++i) {
+            if (i > 2) command_line += " ";
+            command_line += argv[i];
         }
+        
+        // Process the command using the menu system
+        menu->processCommand(command_line, client);
     }
 
     return 0;
