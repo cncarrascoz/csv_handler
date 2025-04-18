@@ -185,11 +185,21 @@ bool handleDelete(const std::vector<std::string>& tokens, CsvClient& client) {
     return true;
 }
 
+bool handleDisplay(const std::vector<std::string>& tokens, CsvClient& client) {
+    if (!ClientMenu::checkArgCount(tokens, 1, 1)) {
+        return true;
+    }
+    
+    client.DisplayFile(tokens[1]);
+    return true;
+}
+
 bool handleHelp(const std::vector<std::string>& tokens, CsvClient& client) {
     std::cout << "Available commands:" << std::endl;
     std::cout << "  upload <filename>               - Upload a CSV file to the server" << std::endl;
     std::cout << "  list                            - List all files on the server" << std::endl;
     std::cout << "  view <filename>                 - View the contents of a file" << std::endl;
+    std::cout << "  display <filename>              - Open a real-time display of a file in a new terminal" << std::endl;
     std::cout << "  sum <filename> <column_name>    - Calculate sum of values in a column" << std::endl;
     std::cout << "  avg <filename> <column_name>    - Calculate average of values in a column" << std::endl;
     std::cout << "  insert <filename> <val1> <val2> - Insert a new row into a file" << std::endl;
@@ -213,6 +223,8 @@ std::unique_ptr<ClientMenu> createClientMenu() {
                         "Exit the program");
     menu->registerCommand("view", commands::handleView,
                         "View the contents of a file");
+    menu->registerCommand("display", commands::handleDisplay,
+                        "Open a real-time display of a file in a new terminal");
     menu->registerCommand("sum", commands::handleSum,
                         "Calculate sum of values in a column");
     menu->registerCommand("avg", commands::handleAvg,

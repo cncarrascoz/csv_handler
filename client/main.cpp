@@ -77,6 +77,9 @@ int main(int argc, char** argv) {
             
             continue_loop = menu->processCommand(user_command, client);
         }
+        
+        // Make sure to stop all display threads before exiting
+        client.StopAllDisplayThreads();
     } else {
         // --- Command-Line Mode --- 
         // Reconstruct the command and arguments from argv
