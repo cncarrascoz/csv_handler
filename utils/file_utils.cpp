@@ -54,7 +54,7 @@ std::string format_csv_as_table(const std::vector<std::string>& column_names,
     
     // Helper function to draw a horizontal line
     auto draw_horizontal_line = [&column_widths, &oss](char left, char middle, char right, char fill) {
-        oss << left << "\n";
+        oss << left;
         for (size_t i = 0; i < column_widths.size(); ++i) {
             oss << std::string(column_widths[i], fill);
             if (i < column_widths.size() - 1) {
