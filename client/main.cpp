@@ -42,6 +42,22 @@ void show_usage(const std::string& name) {
               << std::endl;
 }
 
+// Function to check if the client can connect to the server
+bool check_server_connection(CsvClient& client) {
+    try {
+        // Try to list files as a simple connection test
+        if (!client.TestConnection()) {
+            std::cerr << "Error: Failed to connect to the server. Please check the IP address and ensure the server is running." << std::endl;
+            return false;
+        }
+        return true;
+    }
+    catch (const std::exception& e) {
+        std::cerr << "Error: Failed to connect to the server: " << e.what() << std::endl;
+        return false;
+    }
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) { // Need at least program name and server address
         show_usage(argv[0]);
@@ -56,6 +72,11 @@ int main(int argc, char** argv) {
 
     // Create the client object
     CsvClient client(channel);
+    
+    // Check if we can connect to the server
+    if (!check_server_connection(client)) {
+        return 1;
+    }
     
     // Create the menu system
     auto menu = client::createClientMenu();

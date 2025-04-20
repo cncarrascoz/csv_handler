@@ -30,6 +30,10 @@ public:
     CsvClient(std::shared_ptr<Channel> channel);
     ~CsvClient(); // Destructor to clean up display threads
 
+    // Tests if the client can connect to the server
+    // Returns true if connection is successful, false otherwise
+    bool TestConnection();
+
     // Attempts to upload a CSV file to the server.
     // Returns true on success, false otherwise.
     bool UploadCsv(const std::string& filename);

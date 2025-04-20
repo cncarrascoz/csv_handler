@@ -16,6 +16,22 @@
 CsvClient::CsvClient(std::shared_ptr<Channel> channel)
     : stub_(CsvService::NewStub(channel)) {}
 
+// Tests if the client can connect to the server
+bool CsvClient::TestConnection() {
+    Empty request;
+    CsvFileList response;
+    ClientContext context;
+    
+    // Set a deadline for the connection attempt (3 seconds)
+    std::chrono::system_clock::time_point deadline = 
+        std::chrono::system_clock::now() + std::chrono::seconds(3);
+    context.set_deadline(deadline);
+    
+    Status status = stub_->ListLoadedFiles(&context, request, &response);
+    
+    return status.ok();
+}
+
 // UploadCsv implementation
 bool CsvClient::UploadCsv(const std::string& filename) {
     std::string file_contents;
