@@ -6,10 +6,31 @@
 #include <fstream> // Only needed for error check now, maybe remove later
 #include <stdexcept> // For exception handling from read_file
 #include <sstream>   // For parsing comma-separated values
+#include <thread>
+#include <mutex>
+#include <chrono>
+#include <atomic>
+#include <unordered_map>
 
 // Constructor
 CsvClient::CsvClient(std::shared_ptr<Channel> channel)
     : stub_(CsvService::NewStub(channel)) {}
+
+// Tests if the client can connect to the server
+bool CsvClient::TestConnection() {
+    Empty request;
+    CsvFileList response;
+    ClientContext context;
+    
+    // Set a deadline for the connection attempt (3 seconds)
+    std::chrono::system_clock::time_point deadline = 
+        std::chrono::system_clock::now() + std::chrono::seconds(3);
+    context.set_deadline(deadline);
+    
+    Status status = stub_->ListLoadedFiles(&context, request, &response);
+    
+    return status.ok();
+}
 
 // UploadCsv implementation
 bool CsvClient::UploadCsv(const std::string& filename) {
@@ -208,4 +229,184 @@ void CsvClient::DeleteRow(const std::string& filename, int row_index) {
         std::cerr << "DeleteRow failed: " << status.error_code() << ": " 
                   << status.error_message() << std::endl;
     }
+}
+
+// Destructor to clean up display threads
+CsvClient::~CsvClient() {
+    StopAllDisplayThreads();
+}
+
+// Helper function to fetch file content from server
+std::string CsvClient::FetchFileContent(const std::string& filename) {
+    ViewFileRequest request;
+    request.set_filename(filename);
+    
+    ViewFileResponse response;
+    ClientContext context;
+    
+    Status status = stub_->ViewFile(&context, request, &response);
+    
+    if (status.ok() && response.success()) {
+        // Convert protobuf data to format needed by format_csv_as_table
+        std::vector<std::string> column_names;
+        for (int i = 0; i < response.column_names_size(); ++i) {
+            column_names.push_back(response.column_names(i));
+        }
+        
+        std::vector<std::vector<std::string>> rows;
+        for (const auto& row_proto : response.rows()) {
+            std::vector<std::string> row;
+            for (int i = 0; i < row_proto.values_size(); ++i) {
+                row.push_back(row_proto.values(i));
+            }
+            rows.push_back(row);
+        }
+        
+        // Format the table
+        return file_utils::format_csv_as_table(column_names, rows);
+    }
+    
+    return "Error fetching file content: " + 
+           (status.ok() ? response.message() : status.error_message());
+}
+
+// Opens a new terminal window that displays the CSV file and updates in real-time
+void CsvClient::DisplayFile(const std::string& filename) {
+    // Check if the file exists on the server first
+    ViewFileRequest request;
+    request.set_filename(filename);
+    
+    ViewFileResponse response;
+    ClientContext context;
+    
+    Status status = stub_->ViewFile(&context, request, &response);
+    
+    if (!status.ok() || !response.success()) {
+        std::cerr << "Failed to display file: " << 
+                  (status.ok() ? response.message() : status.error_message()) << std::endl;
+        return;
+    }
+    
+    // Check if we already have a display thread for this file
+    {
+        std::lock_guard<std::mutex> lock(display_threads_mutex_);
+        auto it = display_threads_.find(filename);
+        if (it != display_threads_.end()) {
+            std::cout << "Display already active for file '" << filename << "'" << std::endl;
+            return;
+        }
+    }
+    
+    // Create a new display thread info
+    auto thread_info = std::make_unique<DisplayThreadInfo>();
+    thread_info->running.store(true);
+    thread_info->filename = filename;
+    
+    // Fetch initial content
+    thread_info->last_content = FetchFileContent(filename);
+    
+    // Create a temporary file for the display
+    std::string temp_filename = "/tmp/csv_display_" + filename + ".txt";
+    std::ofstream temp_file(temp_filename);
+    if (!temp_file) {
+        std::cerr << "Failed to create temporary file for display" << std::endl;
+        return;
+    }
+    
+    // Write initial content
+    temp_file << "CSV Display: " << filename << "\n";
+    temp_file << "Real-time updates enabled. Press Ctrl+C to close this window.\n\n";
+    temp_file << thread_info->last_content;
+    temp_file.close();
+    
+    // Open a new terminal window to display the file
+    std::string display_command;
+    
+    #ifdef _WIN32
+    display_command = "start cmd /c \"type " + temp_filename + " && pause\"";
+    #else
+    // On macOS/Linux, use a loop to continuously update the display
+    display_command = "osascript -e 'tell app \"Terminal\" to do script \"clear && cat " + 
+                      temp_filename + " && echo \\\"\\nUpdating live...\\\" && " +
+                      "while true; do sleep 2; clear; cat " + temp_filename + 
+                      "; echo \\\"\\nUpdating live...\\\"; done\"'";
+    #endif
+    
+    system(display_command.c_str());
+    
+    // Start the update thread
+    DisplayThreadInfo* thread_info_ptr = thread_info.get();
+    thread_info->thread = std::thread(DisplayThreadFunction, this, thread_info_ptr);
+    
+    // Store the thread info
+    {
+        std::lock_guard<std::mutex> lock(display_threads_mutex_);
+        display_threads_[filename] = std::move(thread_info);
+    }
+    
+    std::cout << "Display started for file '" << filename << "'" << std::endl;
+    std::cout << "Updates will appear in the new terminal window" << std::endl;
+}
+
+// Thread function for continuous display updates
+void CsvClient::DisplayThreadFunction(CsvClient* client, DisplayThreadInfo* thread_info) {
+    const std::string& filename = thread_info->filename;
+    std::string temp_filename = "/tmp/csv_display_" + filename + ".txt";
+    
+    while (thread_info->running.load()) {
+        // Sleep for a short time between updates
+        std::this_thread::sleep_for(std::chrono::seconds(2));
+        
+        // Fetch the latest content
+        std::string new_content = client->FetchFileContent(filename);
+        
+        // Check if content has changed
+        bool content_changed = false;
+        {
+            std::lock_guard<std::mutex> lock(thread_info->content_mutex);
+            if (new_content != thread_info->last_content) {
+                thread_info->last_content = new_content;
+                content_changed = true;
+            }
+        }
+        
+        if (content_changed) {
+            // Update the temporary file
+            std::ofstream temp_file(temp_filename);
+            if (temp_file) {
+                temp_file << "CSV Display: " << filename << "\n";
+                temp_file << "Real-time updates enabled. Press Ctrl+C to close this window.\n\n";
+                temp_file << new_content;
+                temp_file.close();
+            }
+        }
+    }
+}
+
+// Stops the display thread for a specific file
+void CsvClient::StopDisplayThread(const std::string& filename) {
+    std::lock_guard<std::mutex> lock(display_threads_mutex_);
+    auto it = display_threads_.find(filename);
+    if (it != display_threads_.end()) {
+        it->second->running.store(false);
+        if (it->second->thread.joinable()) {
+            it->second->thread.join();
+        }
+        display_threads_.erase(it);
+        std::cout << "Display stopped for file '" << filename << "'" << std::endl;
+    } else {
+        std::cout << "No active display for file '" << filename << "'" << std::endl;
+    }
+}
+
+// Stops all display threads
+void CsvClient::StopAllDisplayThreads() {
+    std::lock_guard<std::mutex> lock(display_threads_mutex_);
+    for (auto& pair : display_threads_) {
+        pair.second->running.store(false);
+        if (pair.second->thread.joinable()) {
+            pair.second->thread.join();
+        }
+    }
+    display_threads_.clear();
 }

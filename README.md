@@ -24,6 +24,7 @@ The system supports the following commands through its interactive menu interfac
 - **avg \<filename\> \<column_name\>**: Calculate the average of values in a column
 - **insert \<filename\> \<values\>**: Insert a new row into an existing file
 - **delete \<filename\> \<row_index\>**: Delete a row from a file
+- **display \<filename\>**: Open a real-time display of a file in a new terminal, with live updates
 - **exit**: Exit the program
 - **help**: Display help information about available commands
 
