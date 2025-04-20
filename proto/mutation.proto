@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package mutation;
+
+// Row insertion operation
+message RowInsert {
+    repeated string values = 1;
+}
+
+// Row deletion operation
+message RowDelete {
+    int32 row_index = 1;
+}
+
+// A mutation represents a state change operation on a file
+message Mutation {
+    string file = 1;
+    oneof op {
+        RowInsert insert = 2;
+        RowDelete del = 3;
+    }
+}

@@ -110,12 +110,15 @@ bool handleList(const std::vector<std::string>& tokens, CsvServiceImpl& service)
     // Acquire shared lock for reading
     std::shared_lock<std::shared_mutex> lock(service.files_mutex);
     
-    if (service.loaded_files.empty()) {
+    // Use get_loaded_files() instead of directly accessing loaded_files
+    const auto& files = service.get_loaded_files();
+    
+    if (files.empty()) {
         std::cout << "  (None)" << std::endl;
         return true;
     }
     
-    for (const auto& entry : service.loaded_files) {
+    for (const auto& entry : files) {
         if (!entry.second.column_names.empty()) {
             auto it = entry.second.columns.find(entry.second.column_names[0]);
             if (it != entry.second.columns.end() && !it->second.empty()) {
@@ -126,9 +129,10 @@ bool handleList(const std::vector<std::string>& tokens, CsvServiceImpl& service)
                 std::cout << "- " << entry.first << " (0 rows)\n";
             }
         } else {
-            std::cout << "- " << entry.first << " (0 rows)\n";
+            std::cout << "- " << entry.first << " (empty)\n";
         }
     }
+    
     return true;
 }
 
@@ -140,42 +144,54 @@ bool handleStats(const std::vector<std::string>& tokens, CsvServiceImpl& service
     // Acquire shared lock for reading
     std::shared_lock<std::shared_mutex> lock(service.files_mutex);
     
-    // If a specific file is mentioned, show detailed stats for just that file
+    // Use get_loaded_files() method for backward compatibility
+    const auto& files = service.get_loaded_files();
+    
+    if (files.empty()) {
+        std::cout << "No files loaded." << std::endl;
+        return true;
+    }
+    
+    // If a filename is specified, show stats for that file only
     if (tokens.size() > 1) {
         const std::string& filename = tokens[1];
-        auto it = service.loaded_files.find(filename);
-        if (it == service.loaded_files.end()) {
+        auto it = files.find(filename);
+        if (it == files.end()) {
             std::cerr << "Error: File '" << filename << "' not found." << std::endl;
             return true;
         }
         
         const auto& column_store = it->second;
-        std::cout << "\nDetailed stats for '" << filename << "':\n";
-        std::cout << "  Columns (" << column_store.column_names.size() << "):\n";
+        std::cout << "\nFile: " << filename << std::endl;
         
-        // Calculate the maximum column name length for alignment
-        size_t max_col_name_length = 0;
-        for (const auto& col_name : column_store.column_names) {
-            max_col_name_length = std::max(max_col_name_length, col_name.length());
-        }
+        // Basic stats
+        std::cout << "  Columns: " << column_store.column_names.size() << std::endl;
         
-        // Show stats for each column
-        for (const auto& col_name : column_store.column_names) {
-            auto col_it = column_store.columns.find(col_name);
-            if (col_it != column_store.columns.end()) {
-                std::cout << "    " << std::left << std::setw(max_col_name_length + 2) 
-                          << col_name << ": " << col_it->second.size() 
-                          << " values" << std::endl;
+        if (!column_store.column_names.empty()) {
+            // Assuming all columns have the same length
+            const auto& first_col = column_store.column_names[0];
+            auto col_it = column_store.columns.find(first_col);
+            size_t row_count = (col_it != column_store.columns.end()) ? col_it->second.size() : 0;
+            std::cout << "  Rows: " << row_count << std::endl;
+            
+            // Column details
+            std::cout << "  Column details:" << std::endl;
+            for (const auto& col_name : column_store.column_names) {
+                col_it = column_store.columns.find(col_name);
+                if (col_it != column_store.columns.end()) {
+                    std::cout << "    - " << col_name << " (" << col_it->second.size() << " values)" << std::endl;
+                }
             }
         }
     } else {
-        // Show basic stats for all files
-        std::cout << "\nServer Statistics:\n";
-        std::cout << "  Total files loaded: " << service.loaded_files.size() << std::endl;
+        // Show summary stats for all files
+        std::cout << "\nOverall Statistics:" << std::endl;
+        std::cout << "  Total files loaded: " << files.size() << std::endl;
         
-        size_t total_columns = 0, total_rows = 0;
-        for (const auto& entry : service.loaded_files) {
-            const auto& column_store = entry.second;
+        size_t total_columns = 0;
+        size_t total_rows = 0;
+        
+        for (const auto& [filename, column_store] : files) {
             total_columns += column_store.column_names.size();
             
             // Assuming all columns have the same number of rows, use the first column
