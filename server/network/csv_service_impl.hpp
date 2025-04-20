@@ -1,7 +1,9 @@
 // gRPC service implementation for CSV handling
 #pragma once
 
-#include "storage/column_store.hpp"
+#include "core/IStateMachine.hpp"
+#include "storage/InMemoryStateMachine.hpp"
+#include "storage/column_store.hpp" // Include for ColumnStore backward compatibility
 #include "proto/csv_service.grpc.pb.h"
 
 #include <unordered_map>
@@ -11,10 +13,10 @@
 
 class CsvServiceImpl final : public csvservice::CsvService::Service {
 public:
-    // Use a shared_mutex for reader-writer lock pattern
-    // Multiple clients can read simultaneously, but writes are exclusive
-    mutable std::shared_mutex files_mutex;
-    std::unordered_map<std::string, ColumnStore> loaded_files;
+    CsvServiceImpl() : state_(std::make_unique<InMemoryStateMachine>()) {}
+    
+    // Customizable constructor for dependency injection (useful for testing or using DurableStateMachine)
+    explicit CsvServiceImpl(std::unique_ptr<IStateMachine> state) : state_(std::move(state)) {}
 
     grpc::Status UploadCsv(
         grpc::ServerContext* context,
@@ -51,4 +53,22 @@ public:
         grpc::ServerContext* context,
         const csvservice::DeleteRowRequest* request,
         csvservice::ModificationResponse* response) override;
+
+    // The following public members are maintained for backward compatibility with CLI
+    // They should not be used in new code
+    mutable std::shared_mutex files_mutex;
+    
+    // Gets the current state as a map of ColumnStore objects
+    // This is for backward compatibility with menu.cpp
+    const std::unordered_map<std::string, ColumnStore>& get_loaded_files() const;
+    
+    // Backward compatibility alias for get_loaded_files()
+    std::unordered_map<std::string, ColumnStore> loaded_files;
+
+private:
+    // State machine that implements the core functionality
+    std::unique_ptr<IStateMachine> state_;
+    
+    // Update loaded_files from state_machine for backward compatibility
+    void update_loaded_files_cache() const;
 };

@@ -331,3 +331,59 @@ The current modular structure is designed to facilitate future expansion into a 
 - **Heartbeat Mechanism:** Allow nodes to monitor each other's status.
 
 The clean separation between the interface and backend logic will make these additions easier to implement.
+
+## 13. Future Durability and Distribution
+
+The system has been refactored with a state machine architecture that will enable future durability and distributed features:
+
+### State Machine Architecture
+
+At the core of the system is the `IStateMachine` interface, which abstracts the underlying storage mechanism:
+
+```cpp
+class IStateMachine {
+    virtual void apply(const Mutation& mutation) = 0;
+    virtual TableView view(const std::string& file) const = 0;
+    virtual ~IStateMachine() = default;
+};
+```
+
+This approach allows for different implementations of the state machine (in-memory, durable, distributed) while maintaining a consistent interface for the server logic. The current implementation uses `InMemoryStateMachine`, which stores data in memory without persistence.
+
+### Write-Ahead Log (WAL)
+
+The system includes a Write-Ahead Log (WAL) implementation that will enable durability:
+
+- Mutations are first written to the log before being applied to the state machine
+- This ensures that no data is lost in case of system crashes
+- The WAL can be replayed during system restart to recover the state
+
+### Snapshot Mechanism
+
+For efficient recovery and state transfer, a snapshot mechanism is included:
+
+- Periodically captures the entire state of the system
+- Allows for faster recovery than replaying the entire log
+- Serves as a baseline for new nodes joining the cluster
+
+### Distributed Consensus with Raft
+
+The system is prepared for distributed operation using the Raft consensus algorithm:
+
+- `RaftNode` implements the core Raft protocol (leader election, log replication)
+- Heartbeat mechanism for node health monitoring
+- Support for different server roles (LEADER, FOLLOWER, CANDIDATE, STANDALONE)
+- State replication across multiple nodes for fault tolerance
+
+These components are currently implemented as stubs and will be fully activated in future releases. The current implementation defaults to STANDALONE mode, which operates similarly to the previous single-server architecture.
+
+### Benefits
+
+This architecture provides several benefits:
+
+1. **Reliability**: Durability through the WAL and snapshots
+2. **Scalability**: Distribute load across multiple nodes
+3. **Fault Tolerance**: Continue operation even if some nodes fail
+4. **Consistency**: Strong consistency guarantees through Raft consensus
+
+To use the distributed features in future releases, multiple instances of the server can be started with appropriate configuration to form a cluster.
