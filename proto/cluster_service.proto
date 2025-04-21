@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package cluster;
+
+import "proto/mutation.proto";
+
+// Simple acknowledgment response for RPC calls
+message Ack {
+    bool success = 1;
+    string message = 2;
+}
+
+// Heartbeat message for leader election and peer health monitoring
+message Heartbeat {
+    string node_id = 1;
+    int64 term = 2;
+    bool is_leader = 3;
+    int64 last_committed_index = 4;
+}
+
+// Service definition for cluster communication
+service ClusterService {
+    // Replicate mutations across the cluster
+    rpc Replicate(stream mutation.Mutation) returns (Ack);
+    
+    // Send and receive heartbeats between nodes
+    rpc SendHeartbeat(Heartbeat) returns (Ack);
+}

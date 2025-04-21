@@ -34,6 +34,12 @@ install_manifest.txt
 # proto/*.grpc.pb.cc
 # proto/*.grpc.pb.h
 
+# New proto generated directory
+proto/generated/
+
+# Temporary files created by display feature
+/tmp/csv_display_*.txt
+
 # IDE / Editor specific files
 .vscode/
 .idea/

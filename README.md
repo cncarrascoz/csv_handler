@@ -28,6 +28,8 @@ The system supports the following commands through its interactive menu interfac
 - **exit**: Exit the program
 - **help**: Display help information about available commands
 
+The **display** command opens a new terminal window that shows the file content and automatically updates when the file changes on the server. This provides a real-time view that's useful for monitoring data that's being modified by other clients.
+
 ### Server Commands
 The server also has an interactive interface with these commands:
 
@@ -58,12 +60,31 @@ csv_handler/
 │   ├── main.cpp       # Client executable entry point
 │   ├── menu.cpp       # Client menu system implementation
 │   └── menu.hpp       # Client menu system header
+├── core/           # Core interfaces and data structures
+│   ├── IStateMachine.hpp  # State machine interface
+│   ├── Mutation.hpp       # Data mutation operations
+│   └── TableView.hpp      # Read-only view abstraction
 ├── data/           # Directory containing sample CSV files
 │   ├── mock_data.csv  # Sample CSV file with 3 columns
 │   ├── mock_data1.csv # Sample CSV file with 4 columns
 │   └── test_data.csv  # Sample CSV file matching examples in this README
+├── distributed/    # Distributed system components
+│   ├── heartbeat.cpp     # Node communication implementation
+│   ├── heartbeat.hpp     # Heartbeat monitoring interface
+│   ├── raft_node.cpp     # Raft consensus implementation
+│   └── raft_node.hpp     # Raft node interface
+├── persistence/    # Data persistence components
+│   ├── DurableStateMachine.cpp  # Persistent state machine implementation
+│   ├── DurableStateMachine.hpp  # Durable state machine interface
+│   ├── Snapshot.cpp             # State snapshot implementation
+│   ├── Snapshot.hpp             # Snapshot interface
+│   ├── WriteAheadLog.cpp        # Write-ahead log implementation
+│   └── WriteAheadLog.hpp        # WAL interface
 ├── proto/
 │   ├── csv_service.proto     # Service definition
+│   ├── mutation.proto        # Mutation message definitions
+│   ├── cluster_service.proto # Cluster communication service
+│   ├── generated/            # Generated protobuf code
 │   ├── csv_service.pb.cc     # Generated Protobuf C++ source
 │   ├── csv_service.pb.h      # Generated Protobuf C++ header
 │   ├── csv_service.grpc.pb.cc # Generated gRPC C++ source
@@ -75,11 +96,11 @@ csv_handler/
 │   ├── main.cpp                 # Server executable entry point
 │   ├── menu.cpp                 # Server menu system implementation
 │   └── menu.hpp                 # Server menu system header
-├── storage/
-│   ├── column_store.cpp # Column-oriented storage operations
-│   ├── column_store.hpp # Column store data structure definition
-│   ├── csv_parser.cpp   # Logic for parsing CSV data
-│   └── csv_parser.hpp   # Header for CSV parser
+├── storage/        # Storage implementations
+│   ├── InMemoryStateMachine.cpp  # In-memory state machine implementation
+│   ├── InMemoryStateMachine.hpp  # In-memory state machine header
+│   ├── csv_parser.cpp            # CSV parsing utilities
+│   └── csv_parser.hpp            # CSV parser interface
 ├── utils/
 │   ├── file_utils.cpp # File reading utilities
 │   └── file_utils.hpp # Header for file utilities
@@ -322,13 +343,114 @@ The project follows these key architectural principles:
 
 This architecture facilitates the future addition of distributed features (e.g., automatic CSV reprinting when files change) with minimal refactoring.
 
-## 12. Future Distributed Version
+## 12. Codebase Architecture
 
-The current modular structure is designed to facilitate future expansion into a distributed system. Potential future components include:
+The codebase has been refactored with a more structured, layered architecture:
 
-- **Coordinator Node:** Manages cluster state, client requests, and distributes tasks to worker nodes.
-- **Worker Nodes:** Store partitions of the data and execute parts of queries or processing tasks.
-- **Replication:** Implement data replication across worker nodes for fault tolerance.
-- **Heartbeat Mechanism:** Allow nodes to monitor each other's status.
+### Core Layer
+- `core/IStateMachine.hpp`: Abstract interface for state management
+- `core/Mutation.hpp`: Defines data modification operations
+- `core/TableView.hpp`: Read-only view of stored data
 
-The clean separation between the interface and backend logic will make these additions easier to implement.
+### Storage Layer
+- `storage/InMemoryStateMachine.hpp/cpp`: In-memory implementation of IStateMachine
+- Replaced previous `column_store` implementation with a more extensible design
+
+### Persistence Layer
+- `persistence/WriteAheadLog.hpp/cpp`: Log for recording mutations before they're applied
+- `persistence/Snapshot.hpp/cpp`: Mechanism for capturing and restoring state
+- `persistence/DurableStateMachine.hpp/cpp`: Persistent state machine implementation
+
+### Distributed Layer
+- `distributed/raft_node.hpp/cpp`: Implementation of the Raft consensus algorithm
+- `distributed/heartbeat.hpp/cpp`: Node health monitoring and communication
+
+### Client Enhancements
+- Real-time display functionality with live updates
+- Connection health checking
+- Improved error handling and retry logic
+
+## 13. Future Distributed Version
+
+The system has been refactored with a state machine architecture that enables future durability and distributed features:
+
+### State Machine Architecture
+
+At the core of the system is the `IStateMachine` interface, which abstracts the underlying storage mechanism:
+
+```cpp
+class IStateMachine {
+    virtual void apply(const Mutation& mutation) = 0;
+    virtual TableView view(const std::string& file) const = 0;
+    virtual ~IStateMachine() = default;
+};
+```
+
+This approach allows for different implementations of the state machine (in-memory, durable, distributed) while maintaining a consistent interface for the server logic. The current implementation uses `InMemoryStateMachine`, which stores data in memory without persistence.
+
+### Mutation System
+
+The system uses a custom `Mutation` struct to represent state-changing operations:
+
+```cpp
+struct Mutation {
+    std::string file;
+    std::variant<RowInsert, RowDelete> op;
+    
+    bool has_insert() const { return std::holds_alternative<RowInsert>(op); }
+    bool has_delete() const { return std::holds_alternative<RowDelete>(op); }
+};
+```
+
+This design provides type safety and extensibility for adding new mutation types in the future.
+
+### Write-Ahead Log (WAL)
+
+The system includes a Write-Ahead Log (WAL) implementation that will enable durability:
+
+- Mutations are first written to the log before being applied to the state machine
+- This ensures that no data is lost in case of system crashes
+- The WAL can be replayed during system restart to recover the state
+
+### Snapshot Mechanism
+
+For efficient recovery and state transfer, a snapshot mechanism is included:
+
+- Periodically captures the entire state of the system
+- Allows for faster recovery than replaying the entire log
+- Serves as a baseline for new nodes joining the cluster
+
+### Distributed Consensus with Raft
+
+The system is prepared for distributed operation using the Raft consensus algorithm:
+
+- `RaftNode` implements the core Raft protocol (leader election, log replication)
+- `HeartbeatManager` provides node health monitoring and communication
+- Support for different server roles (LEADER, FOLLOWER, CANDIDATE, STANDALONE)
+- State replication across multiple nodes for fault tolerance
+
+These components are currently implemented as stubs and will be fully activated in future releases. The current implementation defaults to STANDALONE mode, which operates similarly to the previous single-server architecture.
+
+### Benefits
+
+This architecture provides several benefits:
+
+1. **Reliability**: Durability through the WAL and snapshots
+2. **Scalability**: Distribute load across multiple nodes
+3. **Fault Tolerance**: Continue operation even if some nodes fail
+4. **Consistency**: Strong consistency guarantees through Raft consensus
+5. **Backward Compatibility**: All existing client functionality continues to work
+
+To use the distributed features in future releases, multiple instances of the server can be started with appropriate configuration to form a cluster.
+
+### Real-Time Display Feature
+
+The newly added display feature demonstrates the extensibility of the architecture:
+
+- Opens a new terminal window with real-time view of the data
+- Updates automatically when data changes on the server
+- Uses a background thread to poll for changes
+- Maintains proper synchronization with mutex locks
+- Provides visual indication of data modifications as they happen
+
+This feature serves as a prototype for future real-time notification systems that could be implemented using the Raft protocol's log replication mechanism.
