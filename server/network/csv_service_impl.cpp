@@ -2,6 +2,7 @@
 #include "storage/csv_parser.hpp"
 #include "core/TableView.hpp"
 #include "core/Mutation.hpp"
+#include "distributed/core/Mutation.hpp"
 
 using grpc::ServerContext;
 using grpc::Status;
@@ -14,20 +15,40 @@ Status CsvServiceImpl::UploadCsv(
     std::string filename = request->filename();
     std::string csv_data(request->csv_data());
     
-    ColumnStore column_store = csv::parse_csv(csv_data);
-    
-    // For now, we're directly using the InMemoryStateMachine interface
-    // In the future, this could be switched to a distributed implementation
-    auto* mem_state = dynamic_cast<InMemoryStateMachine*>(state_.get());
-    if (mem_state) {
-        mem_state->add_csv_file(filename, column_store.column_names, column_store.columns);
+    if (distributed_mode_ && raft_node_) {
+        // In distributed mode, create a mutation and submit it to the Raft node
+        raft::Mutation mutation(raft::MutationType::UPLOAD_CSV, filename, csv_data);
+        bool success = raft_node_->submit(mutation);
+        
+        if (success) {
+            // The mutation was successfully submitted to the Raft log
+            response->set_success(true);
+            response->set_message("CSV file uploaded successfully via Raft consensus");
+            
+            // Parse the CSV to get row and column counts for the response
+            ColumnStore column_store = csv::parse_csv(csv_data);
+            response->set_row_count(column_store.columns.empty() ? 0 : 
+                                  column_store.columns.begin()->second.size());
+            response->set_column_count(column_store.column_names.size());
+        } else {
+            response->set_success(false);
+            response->set_message("Failed to submit CSV upload to Raft log");
+        }
+    } else {
+        // Fallback to non-distributed mode
+        ColumnStore column_store = csv::parse_csv(csv_data);
+        
+        auto* mem_state = dynamic_cast<InMemoryStateMachine*>(state_.get());
+        if (mem_state) {
+            mem_state->add_csv_file(filename, column_store.column_names, column_store.columns);
+        }
+        
+        response->set_success(true);
+        response->set_message("CSV file loaded successfully in column-store format (non-distributed mode)");
+        response->set_row_count(column_store.columns.empty() ? 0 : 
+                              column_store.columns.begin()->second.size());
+        response->set_column_count(column_store.column_names.size());
     }
-    
-    response->set_success(true);
-    response->set_message("CSV file loaded successfully in column-store format");
-    response->set_row_count(column_store.columns.empty() ? 0 : 
-                          column_store.columns.begin()->second.size());
-    response->set_column_count(column_store.column_names.size());
     
     return Status::OK;
 }
@@ -37,11 +58,21 @@ Status CsvServiceImpl::ListLoadedFiles(
     const csvservice::Empty* request,
     csvservice::CsvFileList* response) {
     
-    // Get the list of files from the state machine
-    auto* mem_state = dynamic_cast<InMemoryStateMachine*>(state_.get());
-    if (mem_state) {
-        for (const auto& filename : mem_state->list_files()) {
-            response->add_filenames(filename);
+    if (distributed_mode_ && raft_node_) {
+        // In distributed mode, get the list of files from the Raft state machine
+        auto csv_state_machine = std::dynamic_pointer_cast<raft::CsvStateMachine>(raft_node_->state_machine());
+        if (csv_state_machine) {
+            for (const auto& filename : csv_state_machine->list_files()) {
+                response->add_filenames(filename);
+            }
+        }
+    } else {
+        // Fallback to non-distributed mode
+        auto* mem_state = dynamic_cast<InMemoryStateMachine*>(state_.get());
+        if (mem_state) {
+            for (const auto& filename : mem_state->list_files()) {
+                response->add_filenames(filename);
+            }
         }
     }
     
@@ -49,49 +80,78 @@ Status CsvServiceImpl::ListLoadedFiles(
 }
 
 Status CsvServiceImpl::ViewFile(
-    ServerContext* context,
+    ServerContext* context, 
     const csvservice::ViewFileRequest* request,
     csvservice::ViewFileResponse* response) {
     
-    const std::string& filename = request->filename();
+    std::string filename = request->filename();
     
-    // Get a view of the file from the state machine
-    TableView view = state_->view(filename);
-    
-    if (view.empty()) {
-        response->set_success(false);
-        response->set_message("File not found");
-        return Status::OK;
-    }
-    
-    response->set_success(true);
-    response->set_message("File content retrieved successfully");
-    
-    // Add column names
-    for (const auto& column_name : view.column_names) {
-        response->add_column_names(column_name);
-    }
-    
-    // If there are no columns, we're done
-    if (view.column_names.empty()) {
-        return Status::OK;
-    }
-    
-    // Get the number of rows (assuming all columns have the same size)
-    const auto& first_column = view.columns.at(view.column_names[0]);
-    size_t row_count = first_column.size();
-    
-    // For each row, create a Row message with values from each column
-    for (size_t row_idx = 0; row_idx < row_count; ++row_idx) {
-        auto* row = response->add_rows();
-        
-        for (const auto& column_name : view.column_names) {
-            const auto& column = view.columns.at(column_name);
-            if (row_idx < column.size()) {
-                row->add_values(column[row_idx]);
+    if (distributed_mode_ && raft_node_) {
+        // In distributed mode, get the file from the Raft state machine
+        auto csv_state_machine = std::dynamic_pointer_cast<raft::CsvStateMachine>(raft_node_->state_machine());
+        if (csv_state_machine) {
+            auto file_data = csv_state_machine->get_file(filename);
+            if (!file_data.first.empty()) {
+                response->set_success(true);
+                
+                // Add column names
+                for (const auto& col_name : file_data.first) {
+                    response->add_column_names(col_name);
+                }
+                
+                // Add rows
+                size_t num_rows = file_data.second.empty() ? 0 : 
+                                file_data.second.begin()->second.size();
+                
+                for (size_t i = 0; i < num_rows; ++i) {
+                    auto* row = response->add_rows();
+                    for (const auto& col_name : file_data.first) {
+                        const auto& col_data = file_data.second.at(col_name);
+                        row->add_values(col_data[i]);
+                    }
+                }
             } else {
-                row->add_values("");  // Handle if columns have different sizes
+                response->set_success(false);
+                response->set_message("File not found: " + filename);
             }
+        } else {
+            response->set_success(false);
+            response->set_message("Failed to access Raft state machine");
+        }
+    } else {
+        // Fallback to non-distributed mode
+        auto* mem_state = dynamic_cast<InMemoryStateMachine*>(state_.get());
+        if (mem_state) {
+            // Use the view method instead of get_file
+            auto table_view = mem_state->view(filename);
+            if (!table_view.empty()) {
+                response->set_success(true);
+                
+                // Add column names
+                for (const auto& col_name : table_view.column_names) {
+                    response->add_column_names(col_name);
+                }
+                
+                // Add rows
+                size_t num_rows = table_view.row_count();
+                for (size_t row = 0; row < num_rows; ++row) {
+                    auto* csv_row = response->add_rows();
+                    for (const auto& col_name : table_view.column_names) {
+                        if (table_view.columns.count(col_name) > 0 && 
+                            row < table_view.columns.at(col_name).size()) {
+                            csv_row->add_values(table_view.columns.at(col_name)[row]);
+                        } else {
+                            csv_row->add_values("");  // Empty value for missing data
+                        }
+                    }
+                }
+            } else {
+                response->set_success(false);
+                response->set_message("File not found: " + filename);
+            }
+        } else {
+            response->set_success(false);
+            response->set_message("Invalid state machine");
         }
     }
     
@@ -237,10 +297,4 @@ void CsvServiceImpl::update_loaded_files_cache() const {
             const_cast<CsvServiceImpl*>(this)->loaded_files[filename] = store;
         }
     }
-}
-
-const std::unordered_map<std::string, ColumnStore>& CsvServiceImpl::get_loaded_files() const {
-    // Update the cache before returning
-    update_loaded_files_cache();
-    return loaded_files;
 }

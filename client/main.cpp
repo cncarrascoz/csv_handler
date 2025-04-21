@@ -2,6 +2,7 @@
 #include <iostream>
 #include <memory>
 #include <string>
+#include <vector>
 #include <grpcpp/grpcpp.h>
 
 // Include the client class and menu system
@@ -10,9 +11,9 @@
 
 // Function to print usage instructions
 void show_usage(const std::string& name) {
-    std::cerr << "Usage: " << name << " <server_address> [command] [arguments...]"
+    std::cerr << "Usage: " << name << " <server_address> [server_address2] [server_address3] [command] [arguments...]"
               << std::endl << std::endl
-              << "If only <server_address> is provided, enters interactive mode."
+              << "If only server addresses are provided, enters interactive mode."
               << std::endl << std::endl
               << "Server address format: <IP_ADDRESS>:50051"
               << std::endl
@@ -20,7 +21,9 @@ void show_usage(const std::string& name) {
               << std::endl
               << "  - For remote connections: 192.168.1.X:50051 (replace with actual IP)"
               << std::endl
-              << "  - Ask the server administrator to run the 'ip' command to get the correct address"
+              << "  - For fault tolerance, provide multiple server addresses"
+              << std::endl
+              << "  - Example: " << name << " 127.0.0.1:50051 127.0.0.1:50052 127.0.0.1:50053"
               << std::endl << std::endl
               << "Commands (command-line or interactive):"
               << std::endl
@@ -47,51 +50,101 @@ bool check_server_connection(CsvClient& client) {
     try {
         // Try to list files as a simple connection test
         if (!client.TestConnection()) {
-            std::cerr << "Error: Failed to connect to the server. Please check the IP address and ensure the server is running." << std::endl;
+            std::cerr << "Error: Failed to connect to any server. Please check the IP addresses and ensure at least one server is running." << std::endl;
             return false;
         }
         return true;
-    }
-    catch (const std::exception& e) {
-        std::cerr << "Error: Failed to connect to the server: " << e.what() << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Error: " << e.what() << std::endl;
         return false;
     }
 }
 
 int main(int argc, char** argv) {
-    if (argc < 2) { // Need at least program name and server address
+    // Check for minimum arguments
+    if (argc < 2) {
         show_usage(argv[0]);
         return 1;
     }
 
-    std::string server_address = argv[1];
-
-    // Create a channel to the server
-    std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(
-        server_address, grpc::InsecureChannelCredentials());
-
-    // Create the client object
-    CsvClient client(channel);
+    // Collect all server addresses
+    std::vector<std::string> server_addresses;
+    int arg_index = 1;
     
-    // Check if we can connect to the server
+    // Collect all arguments that look like server addresses (contain a colon)
+    while (arg_index < argc && std::string(argv[arg_index]).find(':') != std::string::npos) {
+        server_addresses.push_back(argv[arg_index]);
+        arg_index++;
+    }
+    
+    if (server_addresses.empty()) {
+        std::cerr << "Error: No valid server addresses provided." << std::endl;
+        show_usage(argv[0]);
+        return 1;
+    }
+    
+    // Create the client with multiple server addresses for fault tolerance
+    CsvClient client(server_addresses);
+    
+    // Check if we can connect to at least one server
     if (!check_server_connection(client)) {
         return 1;
     }
     
-    // Create the menu system
-    auto menu = client::createClientMenu();
-
-    if (argc == 2) {
-        // --- Interactive Mode --- 
-        std::cout << "Connected to server at " << server_address << std::endl;
-        std::cout << "Entered interactive mode." << std::endl;
-        std::string user_command;
+    // If there are more arguments, treat them as commands
+    if (arg_index < argc) {
+        std::string command = argv[arg_index++];
+        
+        if (command == "upload" && arg_index < argc) {
+            std::string filename = argv[arg_index++];
+            if (client.UploadCsv(filename)) {
+                std::cout << "Upload successful." << std::endl;
+            }
+        } else if (command == "list") {
+            client.ListFiles();
+        } else if (command == "view" && arg_index < argc) {
+            std::string filename = argv[arg_index++];
+            client.ViewFile(filename);
+        } else if (command == "sum" && arg_index + 1 < argc) {
+            std::string filename = argv[arg_index++];
+            std::string column_name = argv[arg_index++];
+            client.ComputeSum(filename, column_name);
+        } else if (command == "avg" && arg_index + 1 < argc) {
+            std::string filename = argv[arg_index++];
+            std::string column_name = argv[arg_index++];
+            client.ComputeAverage(filename, column_name);
+        } else if (command == "insert" && arg_index + 1 < argc) {
+            std::string filename = argv[arg_index++];
+            std::string row_data = argv[arg_index++];
+            if (client.InsertRow(filename, row_data)) {
+                std::cout << "Row inserted successfully." << std::endl;
+            }
+        } else if (command == "delete" && arg_index + 1 < argc) {
+            std::string filename = argv[arg_index++];
+            int row_index = std::stoi(argv[arg_index++]);
+            if (client.DeleteRow(filename, row_index)) {
+                std::cout << "Row deleted successfully." << std::endl;
+            }
+        } else {
+            std::cerr << "Invalid command or missing arguments." << std::endl;
+            show_usage(argv[0]);
+            return 1;
+        }
+    } else {
+        // Interactive mode
+        std::cout << "Connected to server cluster. Starting interactive mode." << std::endl;
+        std::cout << "Type 'help' to see available commands." << std::endl;
+        
+        // Start the menu system
+        auto menu = client::createClientMenu();
+        menu->processCommand("help", client);
         
         // Main command loop
         bool continue_loop = true;
+        std::string user_command;
+        
         while (continue_loop) {
-            menu->displayMenu();
-            
+            std::cout << "> ";
             if (!std::getline(std::cin, user_command)) {
                 break; // Handle EOF or input error
             }
@@ -101,18 +154,7 @@ int main(int argc, char** argv) {
         
         // Make sure to stop all display threads before exiting
         client.StopAllDisplayThreads();
-    } else {
-        // --- Command-Line Mode --- 
-        // Reconstruct the command and arguments from argv
-        std::string command_line;
-        for (int i = 2; i < argc; ++i) {
-            if (i > 2) command_line += " ";
-            command_line += argv[i];
-        }
-        
-        // Process the command using the menu system
-        menu->processCommand(command_line, client);
     }
-
+    
     return 0;
 }

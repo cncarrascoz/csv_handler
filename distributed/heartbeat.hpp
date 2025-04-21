@@ -1,6 +1,7 @@
 #pragma once
 
 #include "raft_node.hpp"
+#include "rpc/IRaftRPC.hpp"
 #include <string>
 #include <memory>
 #include <chrono>
@@ -11,11 +12,12 @@
 /**
  * HeartbeatManager handles sending and receiving heartbeats between nodes
  * Used for leader election and cluster membership management
+ * 
+ * Note: This class is now a wrapper around the Raft consensus algorithm's
+ * heartbeat mechanism, which uses AppendEntries RPCs with empty entries.
  */
 class HeartbeatManager {
 public:
-    using Heartbeat = RaftNode::Heartbeat;
-
     /**
      * Constructor
      * @param node_id ID of this node
@@ -41,14 +43,6 @@ public:
      * @return True if heartbeat was sent successfully
      */
     bool send_heartbeat(uint64_t term, bool is_leader, uint64_t last_committed_index);
-    
-    /**
-     * Process a received heartbeat
-     * @param heartbeat The received heartbeat message
-     * @param handler Function to call with the processed heartbeat
-     */
-    void receive_heartbeat(const Heartbeat& heartbeat, 
-                          std::function<void(const Heartbeat&)> handler);
 
 private:
     std::string node_id_;

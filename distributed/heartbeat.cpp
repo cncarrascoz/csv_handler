@@ -32,8 +32,8 @@ void HeartbeatManager::stop_heartbeats() {
 
 bool HeartbeatManager::send_heartbeat(uint64_t term, bool is_leader, uint64_t last_committed_index) {
     // In a real implementation:
-    // 1. Create a heartbeat message
-    // 2. Send it to peers using gRPC
+    // 1. Create an AppendEntries RPC with empty entries (heartbeat)
+    // 2. Send it to peers using the RPC mechanism
     
     // For now, just print a message
     std::cout << "Node " << node_id_ << " sending heartbeat: term=" << term
@@ -41,28 +41,10 @@ bool HeartbeatManager::send_heartbeat(uint64_t term, bool is_leader, uint64_t la
               << ", last_committed=" << last_committed_index
               << " (stub implementation)" << std::endl;
     
-    // If we had a real gRPC connection:
-    /*
-    Heartbeat heartbeat;
-    heartbeat.node_id = node_id_;
-    heartbeat.term = term;
-    heartbeat.is_leader = is_leader;
-    heartbeat.last_committed_index = last_committed_index;
-    
-    // Send heartbeat to peers
-    */
+    // This functionality is now handled by the Raft consensus algorithm
+    // through AppendEntries RPCs with empty entries
     
     return true; // Pretend it worked
-}
-
-void HeartbeatManager::receive_heartbeat(
-    const Heartbeat& heartbeat,
-    std::function<void(const Heartbeat&)> handler) {
-    
-    // Call the handler with the heartbeat
-    handler(heartbeat);
-    
-    // In a real implementation, we might do additional processing here
 }
 
 void HeartbeatManager::heartbeat_loop(int interval_ms) {

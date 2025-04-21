@@ -6,6 +6,7 @@
 #include <atomic>
 #include <thread>
 #include <mutex>
+#include <vector>
 #include <grpcpp/grpcpp.h>
 #include "proto/csv_service.grpc.pb.h"
 
@@ -27,7 +28,12 @@ using csvservice::ModificationResponse;
 
 class CsvClient {
 public:
+    // Constructor with a single server address
     CsvClient(std::shared_ptr<Channel> channel);
+    
+    // Constructor with multiple server addresses for fault tolerance
+    CsvClient(const std::vector<std::string>& server_addresses);
+    
     ~CsvClient(); // Destructor to clean up display threads
 
     // Tests if the client can connect to the server
@@ -51,12 +57,14 @@ public:
     // Requests the server to compute the average of values in a column.
     void ComputeAverage(const std::string& filename, const std::string& column_name);
     
-    // Sends a new row to append to a file on the server.
-    void InsertRow(const std::string& filename, const std::string& comma_separated_values);
+    // Inserts a new row into a file on the server.
+    // Returns true on success, false otherwise.
+    bool InsertRow(const std::string& filename, const std::string& row_data);
     
-    // Requests deletion of a specific row from a file on the server.
-    void DeleteRow(const std::string& filename, int row_index);
-    
+    // Deletes a row from a file on the server.
+    // Returns true on success, false otherwise.
+    bool DeleteRow(const std::string& filename, int row_index);
+
     // Opens a new terminal window that displays the CSV file and updates in real-time
     void DisplayFile(const std::string& filename);
     
@@ -67,13 +75,24 @@ public:
     void StopAllDisplayThreads();
 
 private:
+    // Try to reconnect to another server if current connection fails
+    bool TryReconnect();
+    
+    // Create a channel to a specific server address
+    std::shared_ptr<Channel> CreateChannel(const std::string& server_address);
+    
     std::unique_ptr<CsvService::Stub> stub_;
+    std::vector<std::string> server_addresses_; // List of all available servers
+    std::string current_server_address_; // Currently connected server
+    int current_server_index_ = 0; // Index of current server in the list
+    std::mutex reconnect_mutex_; // Mutex for thread-safe reconnection
     
     // Thread management for display command
     struct DisplayThreadInfo {
         std::thread thread;
         std::atomic<bool> running;
         std::string filename;
+        std::string temp_filename; // Path to the temp file for display
         std::string last_content;
         std::mutex content_mutex;
     };

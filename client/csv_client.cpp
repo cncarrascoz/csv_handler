@@ -12,9 +12,83 @@
 #include <atomic>
 #include <unordered_map>
 
-// Constructor
+// Constructor for single server
 CsvClient::CsvClient(std::shared_ptr<Channel> channel)
-    : stub_(CsvService::NewStub(channel)) {}
+    : stub_(CsvService::NewStub(channel)) {
+    // Store a default server address for backward compatibility
+    server_addresses_.push_back("unknown");
+    current_server_address_ = "unknown";
+}
+
+// Constructor for multiple servers with fault tolerance
+CsvClient::CsvClient(const std::vector<std::string>& server_addresses) 
+    : server_addresses_(server_addresses) {
+    if (server_addresses.empty()) {
+        throw std::runtime_error("No server addresses provided");
+    }
+    
+    // Connect to the first server initially
+    current_server_index_ = 0;
+    current_server_address_ = server_addresses[0];
+    auto channel = CreateChannel(current_server_address_);
+    stub_ = CsvService::NewStub(channel);
+    
+    std::cout << "Connected to server: " << current_server_address_ << std::endl;
+}
+
+// Create a channel to a specific server address
+std::shared_ptr<Channel> CsvClient::CreateChannel(const std::string& server_address) {
+    return grpc::CreateChannel(server_address, grpc::InsecureChannelCredentials());
+}
+
+// Try to reconnect to another server if current connection fails
+bool CsvClient::TryReconnect() {
+    std::lock_guard<std::mutex> lock(reconnect_mutex_);
+    
+    // If we only have one server or no servers, can't reconnect
+    if (server_addresses_.size() <= 1) {
+        std::cerr << "No alternative servers available for reconnection" << std::endl;
+        return false;
+    }
+    
+    std::cout << "Current server " << current_server_address_ << " is unavailable. Attempting to reconnect to another server..." << std::endl;
+    
+    // Try each server in the list
+    for (size_t i = 0; i < server_addresses_.size(); i++) {
+        // Skip the current server that failed
+        if (i == current_server_index_) continue;
+        
+        std::string next_address = server_addresses_[i];
+        std::cout << "Attempting to connect to server: " << next_address << std::endl;
+        
+        auto channel = CreateChannel(next_address);
+        auto new_stub = CsvService::NewStub(channel);
+        
+        // Test if we can connect to this server
+        Empty request;
+        CsvFileList response;
+        ClientContext context;
+        
+        // Set a short deadline for the connection attempt
+        std::chrono::system_clock::time_point deadline = 
+            std::chrono::system_clock::now() + std::chrono::seconds(2);
+        context.set_deadline(deadline);
+        
+        Status status = new_stub->ListLoadedFiles(&context, request, &response);
+        
+        if (status.ok()) {
+            // Connection successful, update the client state
+            stub_ = std::move(new_stub);
+            current_server_index_ = i;
+            current_server_address_ = next_address;
+            std::cout << "Successfully reconnected to server: " << next_address << std::endl;
+            return true;
+        }
+    }
+    
+    std::cerr << "Failed to connect to any available server. Please ensure at least one server is running." << std::endl;
+    return false;
+}
 
 // Tests if the client can connect to the server
 bool CsvClient::TestConnection() {
@@ -28,6 +102,11 @@ bool CsvClient::TestConnection() {
     context.set_deadline(deadline);
     
     Status status = stub_->ListLoadedFiles(&context, request, &response);
+    
+    if (!status.ok() && server_addresses_.size() > 1) {
+        // Connection failed, try to reconnect to another server
+        return TryReconnect();
+    }
     
     return status.ok();
 }
@@ -65,6 +144,12 @@ bool CsvClient::UploadCsv(const std::string& filename) {
     } else {
         std::cerr << "Upload failed: " << status.error_code() << ": " 
                   << status.error_message() << std::endl;
+        if (server_addresses_.size() > 1) {
+            // Upload failed, try to reconnect to another server
+            if (TryReconnect()) {
+                return UploadCsv(filename); // Try the upload again
+            }
+        }
         return false;
     }
 }
@@ -89,6 +174,12 @@ void CsvClient::ListFiles() {
     } else {
         std::cerr << "ListFiles failed: " << status.error_code() << ": " 
                   << status.error_message() << std::endl;
+        if (server_addresses_.size() > 1) {
+            // ListFiles failed, try to reconnect to another server
+            if (TryReconnect()) {
+                ListFiles(); // Try the list again
+            }
+        }
     }
 }
 
@@ -128,6 +219,12 @@ void CsvClient::ViewFile(const std::string& filename) {
     } else {
         std::cerr << "ViewFile failed: " << status.error_code() << ": " 
                   << status.error_message() << std::endl;
+        if (server_addresses_.size() > 1) {
+            // ViewFile failed, try to reconnect to another server
+            if (TryReconnect()) {
+                ViewFile(filename); // Try the view again
+            }
+        }
     }
 }
 
@@ -152,6 +249,12 @@ void CsvClient::ComputeSum(const std::string& filename, const std::string& colum
     } else {
         std::cerr << "ComputeSum failed: " << status.error_code() << ": " 
                   << status.error_message() << std::endl;
+        if (server_addresses_.size() > 1) {
+            // ComputeSum failed, try to reconnect to another server
+            if (TryReconnect()) {
+                ComputeSum(filename, column_name); // Try the computation again
+            }
+        }
     }
 }
 
@@ -176,16 +279,22 @@ void CsvClient::ComputeAverage(const std::string& filename, const std::string& c
     } else {
         std::cerr << "ComputeAverage failed: " << status.error_code() << ": " 
                   << status.error_message() << std::endl;
+        if (server_addresses_.size() > 1) {
+            // ComputeAverage failed, try to reconnect to another server
+            if (TryReconnect()) {
+                ComputeAverage(filename, column_name); // Try the computation again
+            }
+        }
     }
 }
 
 // InsertRow implementation
-void CsvClient::InsertRow(const std::string& filename, const std::string& comma_separated_values) {
+bool CsvClient::InsertRow(const std::string& filename, const std::string& row_data) {
     InsertRowRequest request;
     request.set_filename(filename);
     
     // Parse the comma-separated values
-    std::istringstream iss(comma_separated_values);
+    std::istringstream iss(row_data);
     std::string value;
     while (std::getline(iss, value, ',')) {
         request.add_values(value);
@@ -198,18 +307,27 @@ void CsvClient::InsertRow(const std::string& filename, const std::string& comma_
     
     if (status.ok()) {
         if (response.success()) {
-            std::cout << "Row inserted successfully: " << response.message() << std::endl;
+            std::cout << "Row inserted successfully." << std::endl;
+            return true;
         } else {
-            std::cerr << "Failed to insert row: " << response.message() << std::endl;
+            std::cerr << "Server rejected insert: " << response.message() << std::endl;
+            return false;
         }
     } else {
         std::cerr << "InsertRow failed: " << status.error_code() << ": " 
                   << status.error_message() << std::endl;
+        if (server_addresses_.size() > 1) {
+            // InsertRow failed, try to reconnect to another server
+            if (TryReconnect()) {
+                return InsertRow(filename, row_data); // Try the insertion again
+            }
+        }
+        return false;
     }
 }
 
 // DeleteRow implementation
-void CsvClient::DeleteRow(const std::string& filename, int row_index) {
+bool CsvClient::DeleteRow(const std::string& filename, int row_index) {
     DeleteRowRequest request;
     request.set_filename(filename);
     request.set_row_index(row_index);
@@ -221,13 +339,22 @@ void CsvClient::DeleteRow(const std::string& filename, int row_index) {
     
     if (status.ok()) {
         if (response.success()) {
-            std::cout << "Row deleted successfully: " << response.message() << std::endl;
+            std::cout << "Row deleted successfully." << std::endl;
+            return true;
         } else {
-            std::cerr << "Failed to delete row: " << response.message() << std::endl;
+            std::cerr << "Server rejected delete: " << response.message() << std::endl;
+            return false;
         }
     } else {
         std::cerr << "DeleteRow failed: " << status.error_code() << ": " 
                   << status.error_message() << std::endl;
+        if (server_addresses_.size() > 1) {
+            // DeleteRow failed, try to reconnect to another server
+            if (TryReconnect()) {
+                return DeleteRow(filename, row_index); // Try the deletion again
+            }
+        }
+        return false;
     }
 }
 
@@ -244,30 +371,54 @@ std::string CsvClient::FetchFileContent(const std::string& filename) {
     ViewFileResponse response;
     ClientContext context;
     
+    // Set a timeout for the RPC call
+    std::chrono::system_clock::time_point deadline = 
+        std::chrono::system_clock::now() + std::chrono::seconds(2); // 2 second timeout
+    context.set_deadline(deadline);
+
     Status status = stub_->ViewFile(&context, request, &response);
     
-    if (status.ok() && response.success()) {
-        // Convert protobuf data to format needed by format_csv_as_table
-        std::vector<std::string> column_names;
-        for (int i = 0; i < response.column_names_size(); ++i) {
-            column_names.push_back(response.column_names(i));
-        }
-        
-        std::vector<std::vector<std::string>> rows;
-        for (const auto& row_proto : response.rows()) {
-            std::vector<std::string> row;
-            for (int i = 0; i < row_proto.values_size(); ++i) {
-                row.push_back(row_proto.values(i));
+    if (status.ok()) {
+        if (response.success()) {
+            // Convert protobuf data to format needed by format_csv_as_table
+            std::vector<std::string> column_names;
+            for (int i = 0; i < response.column_names_size(); ++i) {
+                column_names.push_back(response.column_names(i));
             }
-            rows.push_back(row);
+            
+            std::vector<std::vector<std::string>> rows;
+            for (const auto& row_proto : response.rows()) {
+                std::vector<std::string> row;
+                for (int i = 0; i < row_proto.values_size(); ++i) {
+                    row.push_back(row_proto.values(i));
+                }
+                rows.push_back(row);
+            }
+            
+            // Use the table formatting function
+            return file_utils::format_csv_as_table(column_names, rows);
+            
+        } else {
+            return "Error: " + response.message();
+        }
+    } else {
+        // Handle specific error codes if needed
+        if (status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED) {
+             return "Error fetching file content: Timeout contacting server at " + current_server_address_;
+        }
+        // If connection failed, try to reconnect to another server
+        if (server_addresses_.size() > 1 && (status.error_code() == grpc::StatusCode::UNAVAILABLE || status.error_code() == grpc::StatusCode::INTERNAL)) {
+            std::cout << "\n[Display] Connection issue with " << current_server_address_ << ". Attempting reconnect..." << std::endl;
+            if (TryReconnect()) {
+                std::cout << "[Display] Reconnected to " << current_server_address_ << ". Retrying fetch..." << std::endl;
+                // Retry with the new connection
+                return FetchFileContent(filename);
+            }
+             return "Error fetching file content: Failed to connect to any server.";
         }
         
-        // Format the table
-        return file_utils::format_csv_as_table(column_names, rows);
+        return "Error fetching file content: " + status.error_message() + " (Code: " + std::to_string(status.error_code()) + ")";
     }
-    
-    return "Error fetching file content: " + 
-           (status.ok() ? response.message() : status.error_message());
 }
 
 // Opens a new terminal window that displays the CSV file and updates in real-time
@@ -307,6 +458,8 @@ void CsvClient::DisplayFile(const std::string& filename) {
     
     // Create a temporary file for the display
     std::string temp_filename = "/tmp/csv_display_" + filename + ".txt";
+    thread_info->temp_filename = temp_filename; // Store the temp filename
+    
     std::ofstream temp_file(temp_filename);
     if (!temp_file) {
         std::cerr << "Failed to create temporary file for display" << std::endl;
@@ -351,36 +504,97 @@ void CsvClient::DisplayFile(const std::string& filename) {
 // Thread function for continuous display updates
 void CsvClient::DisplayThreadFunction(CsvClient* client, DisplayThreadInfo* thread_info) {
     const std::string& filename = thread_info->filename;
-    std::string temp_filename = "/tmp/csv_display_" + filename + ".txt";
+    const std::string& temp_filename = thread_info->temp_filename;
+    std::string previous_content;
+    int previous_active_servers = -1; // Initialize to -1 to force initial write
+    size_t total_servers = client->server_addresses_.size();
     
-    while (thread_info->running.load()) {
-        // Sleep for a short time between updates
-        std::this_thread::sleep_for(std::chrono::seconds(2));
-        
-        // Fetch the latest content
-        std::string new_content = client->FetchFileContent(filename);
-        
-        // Check if content has changed
-        bool content_changed = false;
-        {
-            std::lock_guard<std::mutex> lock(thread_info->content_mutex);
-            if (new_content != thread_info->last_content) {
-                thread_info->last_content = new_content;
-                content_changed = true;
+    while (thread_info->running) {
+        try {
+            // 1. Check active servers
+            int active_servers = 0;
+            if (total_servers > 0) { // Only check if there are servers defined
+                for (size_t i = 0; i < total_servers; ++i) {
+                    try {
+                        auto channel = client->CreateChannel(client->server_addresses_[i]);
+                        auto temp_stub = CsvService::NewStub(channel);
+                        
+                        Empty request;
+                        CsvFileList response;
+                        ClientContext context;
+                        std::chrono::system_clock::time_point deadline = 
+                            std::chrono::system_clock::now() + std::chrono::milliseconds(500); // Short timeout
+                        context.set_deadline(deadline);
+                        
+                        Status status = temp_stub->ListLoadedFiles(&context, request, &response);
+                        if (status.ok()) {
+                            active_servers++;
+                        }
+                    } catch (const std::exception& e) {
+                        // Ignore connection errors for individual server checks
+                    }
+                }
             }
-        }
-        
-        if (content_changed) {
-            // Update the temporary file
-            std::ofstream temp_file(temp_filename);
-            if (temp_file) {
-                temp_file << "CSV Display: " << filename << "\n";
-                temp_file << "Real-time updates enabled. Press Ctrl+C to close this window.\n\n";
-                temp_file << new_content;
-                temp_file.close();
+
+            // 2. Fetch current content
+            std::string current_content = client->FetchFileContent(filename);
+            bool content_is_error = current_content.rfind("Error", 0) == 0; // Check if content is an error message
+
+            // 3. Update temp file if content or server count changed
+            if (current_content != previous_content || active_servers != previous_active_servers) {
+                std::ofstream temp_file(temp_filename, std::ios::trunc); // Overwrite the file
+                if (temp_file) {
+                    // Write header
+                    temp_file << "CSV Display: " << filename << "\n";
+                    temp_file << "Active Servers: " << active_servers << "/" << total_servers << "\n";
+                    temp_file << "Real-time updates enabled. Press Ctrl+C in this window to stop.\n\n";
+                    
+                    // Write content or error message
+                    temp_file << current_content;
+                    temp_file.close();
+                    
+                    previous_content = current_content;
+                    previous_active_servers = active_servers;
+                } else {
+                    // Log error locally, can't update the temp file
+                    std::cerr << "Error: Could not open temp file " << temp_filename << " for writing." << std::endl;
+                }
+
+                // Handle fetch error - potentially trigger reconnect in main client context
+                if (content_is_error && current_content.find("Connection refused") != std::string::npos) {
+                     // We don't call TryReconnect directly here as it might interfere with the main client's state.
+                     // The FetchFileContent already handles trying to reconnect if the primary connection fails.
+                     // We just log it here for the display thread context.
+                     std::ofstream temp_file(temp_filename, std::ios::app); // Append error state
+                     if(temp_file) {
+                        temp_file << "\n\n[Server connection issue detected. Client is attempting to reconnect...]\n";
+                        temp_file.close();
+                     }
+                }
             }
+
+            // Sleep before next update cycle
+            std::this_thread::sleep_for(std::chrono::seconds(1)); // Update interval
+            
+        } catch (const std::exception& e) {
+            std::cerr << "Error in display thread for " << filename << ": " << e.what() << std::endl;
+            // Log error to the temp file as well
+            try {
+                 std::ofstream temp_file(temp_filename, std::ios::app);
+                 if (temp_file) {
+                    temp_file << "\n\n[Error in display thread: " << e.what() << "]\n";
+                    temp_file.close();
+                 }
+            } catch (...) { /* Ignore errors writing error message */ }
+
+            // Sleep longer after an error before retrying
+            std::this_thread::sleep_for(std::chrono::seconds(5));
         }
     }
+    
+    std::cout << "Display thread for " << filename << " stopping." << std::endl;
+    // Clean up the temp file when the thread stops
+    std::remove(temp_filename.c_str());
 }
 
 // Stops the display thread for a specific file

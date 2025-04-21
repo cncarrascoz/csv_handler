@@ -1,7 +1,10 @@
 #pragma once
 
-#include "core/IStateMachine.hpp"
+#include "core/RaftStateMachine.hpp"
 #include "core/Mutation.hpp"
+#include "core/LogEntry.hpp"
+#include "rpc/IRaftRPC.hpp"
+
 #include <string>
 #include <vector>
 #include <memory>
@@ -9,6 +12,19 @@
 #include <cstdint>
 #include <atomic>
 #include <thread>
+#include <mutex>
+#include <random>
+#include <unordered_map>
+#include <condition_variable>
+#include <fstream>
+
+// Forward declarations
+namespace raft {
+class RaftStateMachine;
+class Mutation;
+class LogEntry;
+enum class MutationType;
+}
 
 /**
  * Enum defining the possible roles a node can have in the cluster
@@ -30,10 +46,12 @@ public:
      * @param node_id Unique identifier for this node
      * @param state_machine State machine to apply operations to
      * @param peer_addresses Addresses of other nodes in the cluster
+     * @param storage_dir Directory to store persistent state
      */
     RaftNode(const std::string& node_id,
-             std::shared_ptr<IStateMachine> state_machine,
-             const std::vector<std::string>& peer_addresses);
+             std::shared_ptr<raft::RaftStateMachine> state_machine,
+             const std::vector<std::string>& peer_addresses,
+             const std::string& storage_dir = "");
     
     /**
      * Destructor - cleans up resources
@@ -55,7 +73,7 @@ public:
      * @param mutation The mutation to apply
      * @return True if the mutation was accepted (doesn't guarantee it will be committed)
      */
-    bool submit(const Mutation& mutation);
+    bool submit(const raft::Mutation& mutation);
     
     /**
      * Get the current role of this node
@@ -75,27 +93,67 @@ public:
      */
     std::string current_leader() const;
     
-    // In a real implementation, this would be a protobuf message
-    // For now, we'll use a simplified structure
-    struct Heartbeat {
-        std::string node_id;
-        uint64_t term;
-        bool is_leader;
-        uint64_t last_committed_index;
-    };
+    /**
+     * Get the number of nodes in the cluster
+     * @return The cluster size
+     */
+    size_t cluster_size() const;
+    
+    /**
+     * Get the number of nodes needed for a quorum
+     * @return The quorum size
+     */
+    size_t quorum_size() const;
+    
+    /**
+     * Get the addresses of all peers in the cluster
+     * @return Vector of peer addresses
+     */
+    std::vector<std::string> peer_addresses() const;
+    
+    /**
+     * Get the log entries
+     * @return Vector of log entries
+     */
+    std::vector<raft::LogEntry> log_entries() const;
+    
+    /**
+     * Get the commit index
+     * @return The commit index
+     */
+    uint64_t commit_index() const;
+    
+    /**
+     * Get the last applied index
+     * @return The last applied index
+     */
+    uint64_t last_applied() const;
+    
+    /**
+     * Get the state machine
+     * @return The state machine
+     */
+    std::shared_ptr<raft::RaftStateMachine> state_machine() const {
+        return state_machine_;
+    }
 
 private:
     std::string node_id_;
-    std::shared_ptr<IStateMachine> state_machine_;
+    std::shared_ptr<raft::RaftStateMachine> state_machine_;
     std::vector<std::string> peer_addresses_;
+    std::string storage_dir_;
+    
+    // RPC client for communication with other nodes
+    std::unique_ptr<IRaftRPC> rpc_;
     
     // Raft state
     std::atomic<ServerRole> role_{ServerRole::STANDALONE};
     std::atomic<uint64_t> current_term_{0};
     std::string voted_for_;
     std::string current_leader_;
-    uint64_t commit_index_{0};
-    uint64_t last_applied_{0};
+    std::vector<raft::LogEntry> log_;
+    std::atomic<uint64_t> commit_index_{0};
+    std::atomic<uint64_t> last_applied_{0};
     
     // Volatile leader state
     std::vector<uint64_t> next_index_;
@@ -104,9 +162,22 @@ private:
     // Control flags
     std::atomic<bool> running_{false};
     std::thread ticker_thread_;
+    std::thread apply_thread_;
+    
+    // Election timeout
+    std::chrono::steady_clock::time_point last_heartbeat_;
+    std::chrono::milliseconds election_timeout_;
+    std::mt19937 random_engine_;
+    
+    // Mutex for protecting state
+    mutable std::mutex mutex_;
+    std::condition_variable apply_cv_;
     
     // Ticker function for periodic tasks
     void tick();
+    
+    // Apply committed entries to the state machine
+    void apply_entries();
     
     // Core Raft steps
     void step_down(uint64_t term);
@@ -114,8 +185,25 @@ private:
     void become_candidate();
     void become_leader();
     
-    // Handle heartbeats
-    void send_heartbeats();
+    // Handle RPC requests
+    RequestVoteResponse handle_request_vote(const RequestVoteRequest& request);
+    AppendEntriesResponse handle_append_entries(const AppendEntriesRequest& request);
     
-    void handle_heartbeat(const Heartbeat& heartbeat);
+    // Leader functions
+    void send_heartbeats();
+    void replicate_log(size_t peer_index);
+    
+    // Log manipulation
+    uint64_t get_last_log_index() const;
+    uint64_t get_last_log_term() const;
+    bool append_entries(uint64_t prev_log_index, uint64_t prev_log_term, 
+                        const std::vector<raft::LogEntry>& entries);
+    
+    // Persistence
+    void save_state();
+    void load_state();
+    
+    // Helper methods
+    void reset_election_timeout();
+    std::chrono::milliseconds random_election_timeout();
 };

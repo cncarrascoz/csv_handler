@@ -50,6 +50,11 @@ add_library(persistence STATIC
 add_library(distributed STATIC
     distributed/raft_node.cpp
     distributed/heartbeat.cpp
+    distributed/core/Mutation.cpp
+    distributed/core/LogEntry.cpp
+    distributed/core/CsvStateMachine.cpp
+    distributed/rpc/RaftRPC.cpp
+    distributed/rpc/SocketRaftRPC.cpp
 )
 
 # Utils library with file handling utilities
