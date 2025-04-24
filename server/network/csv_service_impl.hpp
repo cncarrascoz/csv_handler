@@ -4,20 +4,36 @@
 #include "core/IStateMachine.hpp"
 #include "storage/InMemoryStateMachine.hpp"
 #include "storage/column_store.hpp" // Include for ColumnStore backward compatibility
-#include "proto/csv_service.grpc.pb.h"
-
 #include <unordered_map>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
+#include <vector>
+
+#include "proto/csv_service.grpc.pb.h" // gRPC service definition
+#include "proto/csv_service.pb.h"      // Protobuf message definitions
+#include "server_registry.hpp"
+
+namespace network {
 
 class CsvServiceImpl final : public csvservice::CsvService::Service {
 public:
-    CsvServiceImpl() : state_(std::make_unique<InMemoryStateMachine>()) {}
-    
-    // Customizable constructor for dependency injection (useful for testing or using DurableStateMachine)
-    explicit CsvServiceImpl(std::unique_ptr<IStateMachine> state) : state_(std::move(state)) {}
+    CsvServiceImpl(ServerRegistry& registry); // Constructor accepting registry
 
+    // Deleted default constructor to enforce registry injection
+    CsvServiceImpl() = delete;
+    
+    // Move operations are implicitly deleted because of std::shared_mutex member
+    // CsvServiceImpl(CsvServiceImpl&&) = default; 
+    // CsvServiceImpl& operator=(CsvServiceImpl&&) = default; 
+ 
+    // Disallow copying
+    CsvServiceImpl(const CsvServiceImpl&) = delete;
+    CsvServiceImpl& operator=(const CsvServiceImpl&) = delete;
+
+    // Initialize with server registry (removed, logic moved to constructor)
+    // void initialize(const std::string& server_address, const std::vector<std::string>& peer_addresses = {});
+    
     grpc::Status UploadCsv(
         grpc::ServerContext* context,
         const csvservice::CsvUploadRequest* request,
@@ -53,6 +69,16 @@ public:
         grpc::ServerContext* context,
         const csvservice::DeleteRowRequest* request,
         csvservice::ModificationResponse* response) override;
+        
+    // New method to check server health and get cluster status
+    grpc::Status GetClusterStatus(
+        grpc::ServerContext* context,
+        const csvservice::Empty* request,
+        csvservice::ClusterStatusResponse* response) override;
+
+    // RPC called by leader to replicate upload to peers
+    grpc::Status ReplicateUpload(grpc::ServerContext* context, const csvservice::CsvUploadRequest* request,
+                                 csvservice::ReplicateUploadResponse* response) override;
 
     // The following public members are maintained for backward compatibility with CLI
     // They should not be used in new code
@@ -69,6 +95,18 @@ private:
     // State machine that implements the core functionality
     std::unique_ptr<IStateMachine> state_;
     
-    // Update loaded_files from state_machine for backward compatibility
+    // Reference to the ServerRegistry
+    ServerRegistry& registry_;
+    
+    // Update loaded_files_cache for backward compatibility
     void update_loaded_files_cache() const;
+    
+    // Forward a request to the leader if this server is not the leader
+    template<typename RequestType, typename ResponseType>
+    bool forward_to_leader_if_needed(
+        const RequestType* request,
+        ResponseType* response,
+        std::function<grpc::Status(const RequestType*, ResponseType*)> handler);
 };
+
+} // namespace network

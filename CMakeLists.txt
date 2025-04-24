@@ -46,10 +46,9 @@ add_library(persistence STATIC
     persistence/DurableStateMachine.cpp
 )
 
-# Distributed library with Raft implementation
+# Distributed library with fault tolerance implementation
 add_library(distributed STATIC
-    distributed/raft_node.cpp
-    distributed/heartbeat.cpp
+    server/network/server_registry.cpp
 )
 
 # Utils library with file handling utilities
@@ -78,6 +77,7 @@ target_link_libraries(server
     persistence
     distributed
     gRPC::grpc++
+    gRPC::grpc++_reflection
     gRPC::grpc
     protobuf::libprotobuf
 )

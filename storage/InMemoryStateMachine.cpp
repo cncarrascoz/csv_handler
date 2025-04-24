@@ -97,3 +97,12 @@ void InMemoryStateMachine::delete_row(ColumnStore& store, int row_index) {
         values.erase(values.begin() + row_index);
     }
 }
+
+// Implementation for get_files
+const std::unordered_map<std::string, ColumnStore>& InMemoryStateMachine::get_files() const {
+    // Note: No lock needed for const access if the map itself isn't modified
+    // If ColumnStore objects could be mutated through the reference, a read lock (shared_lock) would be needed.
+    return files_;
+}
+
+// namespace csv

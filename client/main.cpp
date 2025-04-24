@@ -64,16 +64,26 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    std::string server_address = argv[1];
-
-    // Create a channel to the server
-    std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(
-        server_address, grpc::InsecureChannelCredentials());
-
-    // Create the client object
-    CsvClient client(channel);
+    // Collect all server addresses
+    std::vector<std::string> server_addresses;
+    int arg_index = 1;
     
-    // Check if we can connect to the server
+    // Collect all arguments that look like server addresses (contain a colon)
+    while (arg_index < argc && std::string(argv[arg_index]).find(':') != std::string::npos) {
+        server_addresses.push_back(argv[arg_index]);
+        arg_index++;
+    }
+    
+    if (server_addresses.empty()) {
+        std::cerr << "Error: No valid server addresses provided." << std::endl;
+        show_usage(argv[0]);
+        return 1;
+    }
+    
+    // Create the client with multiple server addresses for fault tolerance
+    CsvClient client(server_addresses);
+    
+    // Check if we can connect to at least one server
     if (!check_server_connection(client)) {
         return 1;
     }
@@ -81,10 +91,11 @@ int main(int argc, char** argv) {
     // Create the menu system
     auto menu = client::createClientMenu();
 
-    if (argc == 2) {
+    // If arg_index reached the end, all arguments were server addresses -> interactive mode
+    if (arg_index == argc) {
         // --- Interactive Mode --- 
-        std::cout << "Connected to server at " << server_address << std::endl;
-        std::cout << "Entered interactive mode." << std::endl;
+        std::cout << "Connected to server cluster. Starting interactive mode." << std::endl;
+        std::cout << "Type 'help' to see available commands." << std::endl;
         std::string user_command;
         
         // Main command loop
@@ -103,10 +114,10 @@ int main(int argc, char** argv) {
         client.StopAllDisplayThreads();
     } else {
         // --- Command-Line Mode --- 
-        // Reconstruct the command and arguments from argv
+        // Reconstruct the command and arguments from argv, starting after the server addresses
         std::string command_line;
-        for (int i = 2; i < argc; ++i) {
-            if (i > 2) command_line += " ";
+        for (int i = arg_index; i < argc; ++i) {
+            if (i > arg_index) command_line += " "; // Add space between command parts
             command_line += argv[i];
         }
         

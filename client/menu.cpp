@@ -157,14 +157,10 @@ bool handleInsert(const std::vector<std::string>& tokens, CsvClient& client) {
         return true;
     }
     
-    // Reconstruct the comma-separated values from all tokens from index 2 onward
-    std::string values;
-    for (size_t i = 2; i < tokens.size(); ++i) {
-        if (i > 2) values += ",";
-        values += tokens[i];
-    }
+    // Create a vector of strings for the row data from tokens[2] onwards
+    std::vector<std::string> row_data(tokens.begin() + 2, tokens.end());
     
-    client.InsertRow(tokens[1], values);
+    client.InsertRow(tokens[1], row_data); // Pass the vector directly
     return true;
 }
 

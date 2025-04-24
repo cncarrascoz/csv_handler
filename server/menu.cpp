@@ -16,7 +16,7 @@ void ServerMenu::registerCommand(const std::string& command, CommandHandler hand
     command_handlers_[command] = {handler, description};
 }
 
-bool ServerMenu::processCommand(const std::string& command_line, CsvServiceImpl& service) {
+bool ServerMenu::processCommand(const std::string& command_line, network::CsvServiceImpl& service) {
     if (command_line.empty()) {
         return true; // Empty command line, nothing to do
     }
@@ -100,7 +100,7 @@ bool ServerMenu::checkArgCount(const std::vector<std::string>& tokens,
 // Individual command handlers
 namespace commands {
 
-bool handleList(const std::vector<std::string>& tokens, CsvServiceImpl& service) {
+bool handleList(const std::vector<std::string>& tokens, network::CsvServiceImpl& service) {
     if (!ServerMenu::checkArgCount(tokens, 0, 0)) {
         return true;
     }
@@ -136,7 +136,7 @@ bool handleList(const std::vector<std::string>& tokens, CsvServiceImpl& service)
     return true;
 }
 
-bool handleStats(const std::vector<std::string>& tokens, CsvServiceImpl& service) {
+bool handleStats(const std::vector<std::string>& tokens, network::CsvServiceImpl& service) {
     if (!ServerMenu::checkArgCount(tokens, 0, 1)) {
         return true;
     }
@@ -211,7 +211,7 @@ bool handleStats(const std::vector<std::string>& tokens, CsvServiceImpl& service
     return true;
 }
 
-bool handleIpAddress(const std::vector<std::string>& tokens, CsvServiceImpl& service) {
+bool handleIpAddress(const std::vector<std::string>& tokens, network::CsvServiceImpl& service) {
     if (!ServerMenu::checkArgCount(tokens, 0, 0)) {
         return true;
     }
@@ -260,7 +260,7 @@ bool handleIpAddress(const std::vector<std::string>& tokens, CsvServiceImpl& ser
     return true;
 }
 
-bool handleExit(const std::vector<std::string>& tokens, CsvServiceImpl& service) {
+bool handleExit(const std::vector<std::string>& tokens, network::CsvServiceImpl& service) {
     if (!ServerMenu::checkArgCount(tokens, 0, 0)) {
         return true;
     }
@@ -269,7 +269,7 @@ bool handleExit(const std::vector<std::string>& tokens, CsvServiceImpl& service)
     return false; // Signal to exit the command loop
 }
 
-bool handleHelp(const std::vector<std::string>& tokens, CsvServiceImpl& service) {
+bool handleHelp(const std::vector<std::string>& tokens, network::CsvServiceImpl& service) {
     std::cout << "Available server commands:" << std::endl;
     std::cout << "  list               - List all loaded files with basic info" << std::endl;
     std::cout << "  stats [filename]   - Show statistics for all files or a specific file" << std::endl;

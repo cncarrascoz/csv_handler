@@ -1,0 +1,88 @@
+--- a/client/csv_client.cpp
++++ b/client/csv_client.cpp
+@@ -12,9 +12,43 @@
+ #include <atomic>
+ #include <unordered_map>
+ 
+-// Constructor
++// Constructor with a single server
+ CsvClient::CsvClient(std::shared_ptr<Channel> channel)
+-    : stub_(CsvService::NewStub(channel)) {}
++    : stub_(CsvService::NewStub(channel)) {
++    // Store a default server address for backward compatibility
++    server_addresses_.push_back("unknown");
++    current_server_address_ = "unknown";
++}
++
++// Constructor with multiple servers for fault tolerance
++CsvClient::CsvClient(const std::vector<std::string>& server_addresses) 
++    : server_addresses_(server_addresses) {
++    if (server_addresses.empty()) {
++        throw std::runtime_error("No server addresses provided");
++    }
++    
++    // Connect to the first server initially
++    current_server_index_ = 0;
++    current_server_address_ = server_addresses[0];
++    auto channel = create_channel(current_server_address_);
++    stub_ = CsvService::NewStub(channel);
++    
++    std::cout << "Connected to server: " << current_server_address_ << std::endl;
++}
++
++// Create a channel to a specific server address
++std::shared_ptr<Channel> CsvClient::create_channel(const std::string& server_address) {
++    return grpc::CreateChannel(server_address, grpc::InsecureChannelCredentials());
++}
++
++// Try to reconnect to another server if current connection fails
++bool CsvClient::try_reconnect() {
++    std::lock_guard<std::mutex> lock(reconnect_mutex_);
++    
++    // If we only have one server or no servers, can't reconnect
++    if (server_addresses_.size() <= 1) {
++        std::cerr << "No alternative servers available for reconnection" << std::endl;
++        return false;
++    }
++    
++    std::cout << "Current server " << current_server_address_ << " is unavailable. Attempting to reconnect to another server..." << std::endl;
++    
++    // Try each server in the list
++    for (size_t i = 0; i < server_addresses_.size(); i++) {
++        // Skip the current server that failed
++        if (i == current_server_index_) continue;
++        
++        std::string next_address = server_addresses_[i];
++        std::cout << "Attempting to connect to server: " << next_address << std::endl;
++        
++        auto channel = create_channel(next_address);
++        auto new_stub = CsvService::NewStub(channel);
++        
++        // Test if we can connect to this server
++        Empty request;
++        CsvFileList response;
++        ClientContext context;
++        
++        // Set a short deadline for the connection attempt
++        std::chrono::system_clock::time_point deadline = 
++            std::chrono::system_clock::now() + std::chrono::seconds(2);
++        context.set_deadline(deadline);
++        
++        Status status = new_stub->ListLoadedFiles(&context, request, &response);
++        
++        if (status.ok()) {
++            // Connection successful, update the client state
++            stub_ = std::move(new_stub);
++            current_server_index_ = i;
++            current_server_address_ = next_address;
++            std::cout << "Successfully reconnected to server: " << next_address << std::endl;
++            return true;
++        }
++    }
++    
++    std::cerr << "Failed to connect to any available server. Please ensure at least one server is running." << std::endl;
++    return false;
++}
+ 
+ // Tests if the client can connect to the server
+ bool CsvClient::TestConnection() {
