@@ -10,6 +10,9 @@
 #include <thread>
 #include <future>
 #include <functional>
+#include <iostream>
+#include <numeric>
+#include <limits>
 
 using grpc::ServerContext;
 using grpc::Status;
@@ -238,20 +241,150 @@ Status CsvServiceImpl::ViewFile(ServerContext* context,
 }
 
 Status CsvServiceImpl::DeleteRow(ServerContext* context, const csvservice::DeleteRowRequest* request, csvservice::ModificationResponse* response) {
-    return Status(grpc::StatusCode::UNIMPLEMENTED, "DeleteRow not implemented");
+    const std::string& filename = request->filename();
+    int row_index = request->row_index();
+
+    std::cout << "DeleteRow called for file: " << filename << ", row index: " << row_index << std::endl;
+
+    // Define the handler function to perform the actual deletion
+    auto handler = [this, &filename, row_index, response](const csvservice::DeleteRowRequest*, csvservice::ModificationResponse* resp) -> grpc::Status {
+        try {
+            Mutation mutation;
+            mutation.file = filename;
+            mutation.op = RowDelete{row_index};
+            state_->apply(mutation);
+            resp->set_success(true);
+            resp->set_message("Row deleted successfully.");
+            std::cout << "Successfully deleted row " << row_index << " from file " << filename << std::endl;
+            return Status::OK;
+        } catch (const std::exception& e) {
+            resp->set_success(false);
+            resp->set_message(std::string("Error deleting row: ") + e.what());
+            std::cerr << "DeleteRow exception for " << filename << ": " << e.what() << std::endl;
+            return Status(grpc::StatusCode::INTERNAL, e.what());
+        }
+    };
+
+    // Forward if needed, or execute locally if leader
+    std::function<grpc::Status(const csvservice::DeleteRowRequest*, csvservice::ModificationResponse*)> handler_func = handler;
+    bool forwarded = forward_to_leader_if_needed(request, response, handler_func);
+    if (forwarded) {
+        // The response is populated by the forward_to_leader_if_needed function upon receiving leader's response
+        // Determine status based on response success flag
+        std::cout << "DeleteRow request forwarded to leader for file: " << filename << std::endl;
+        return response->success() ? Status::OK : Status(grpc::StatusCode::INTERNAL, response->message());
+    } else {
+        // Executed locally (either leader or standalone)
+        return handler(request, response);
+    }
 }
 
 Status CsvServiceImpl::InsertRow(ServerContext* context, const csvservice::InsertRowRequest* request, csvservice::ModificationResponse* response) {
-    return Status(grpc::StatusCode::UNIMPLEMENTED, "InsertRow not implemented");
+    const std::string& filename = request->filename();
+    std::cout << "InsertRow called for file: " << filename << std::endl;
+
+    // Define the handler function to perform the actual insertion
+    auto handler = [this, &filename, request, response](const csvservice::InsertRowRequest*, csvservice::ModificationResponse* resp) -> grpc::Status {
+        try {
+            Mutation mutation;
+            mutation.file = filename;
+            RowInsert insert_op;
+            // Convert protobuf repeated field to std::vector<std::string>
+            insert_op.values.reserve(request->values_size());
+            for (const auto& val : request->values()) {
+                insert_op.values.push_back(val);
+            }
+            mutation.op = insert_op;
+
+            state_->apply(mutation);
+            resp->set_success(true);
+            resp->set_message("Row inserted successfully.");
+            std::cout << "Successfully inserted row into file " << filename << std::endl;
+            return Status::OK;
+        } catch (const std::exception& e) {
+            resp->set_success(false);
+            resp->set_message(std::string("Error inserting row: ") + e.what());
+            std::cerr << "InsertRow exception for " << filename << ": " << e.what() << std::endl;
+            return Status(grpc::StatusCode::INTERNAL, e.what());
+        }
+    };
+
+    // Forward if needed, or execute locally if leader
+    std::function<grpc::Status(const csvservice::InsertRowRequest*, csvservice::ModificationResponse*)> handler_func = handler;
+    bool forwarded = forward_to_leader_if_needed(request, response, handler_func);
+    if (forwarded) {
+        // Response populated by forwarded call
+        std::cout << "InsertRow request forwarded to leader for file: " << filename << std::endl;
+        return response->success() ? Status::OK : Status(grpc::StatusCode::INTERNAL, response->message());
+    } else {
+        // Executed locally
+        return handler(request, response);
+    }
 }
 
 // Stub implementations for unimplemented RPCs and methods
 Status CsvServiceImpl::ComputeSum(ServerContext* context, const csvservice::ColumnOperationRequest* request, csvservice::NumericResponse* response) {
-    return Status(grpc::StatusCode::UNIMPLEMENTED, "ComputeSum not implemented");
+    const std::string& filename = request->filename();
+    const std::string& column_name = request->column_name();
+    std::cout << "ComputeSum called for file: " << filename << ", column: " << column_name << std::endl;
+
+    try {
+        // Read operations are typically safe to perform on local state (follower or leader)
+        TableView view = state_->view(filename);
+        if (view.empty()) {
+            std::string msg = "File not found or empty: " + filename;
+            response->set_success(false);
+            response->set_message(msg);
+            std::cerr << "ComputeSum failed: " << msg << std::endl;
+            return Status(grpc::StatusCode::NOT_FOUND, msg);
+        }
+
+        double sum = view.compute_sum(column_name);
+        response->set_value(sum);
+        response->set_success(true);
+        response->set_message("Sum computed successfully.");
+        std::cout << "Successfully computed sum for " << filename << ":" << column_name << std::endl;
+        return Status::OK;
+
+    } catch (const std::exception& e) {
+        response->set_success(false);
+        response->set_message(std::string("Error computing sum: ") + e.what());
+        std::cerr << "ComputeSum exception for " << filename << ":" << column_name << ": " << e.what() << std::endl;
+        // Determine appropriate status code (e.g., NOT_FOUND if column doesn't exist, INVALID_ARGUMENT if non-numeric)
+        // For simplicity, using INTERNAL here, but could be refined.
+        return Status(grpc::StatusCode::INTERNAL, e.what());
+    }
 }
 
 Status CsvServiceImpl::ComputeAverage(ServerContext* context, const csvservice::ColumnOperationRequest* request, csvservice::NumericResponse* response) {
-    return Status(grpc::StatusCode::UNIMPLEMENTED, "ComputeAverage not implemented");
+    const std::string& filename = request->filename();
+    const std::string& column_name = request->column_name();
+    std::cout << "ComputeAverage called for file: " << filename << ", column: " << column_name << std::endl;
+
+    try {
+        // Read operations performed locally
+        TableView view = state_->view(filename);
+         if (view.empty()) {
+            std::string msg = "File not found or empty: " + filename;
+            response->set_success(false);
+            response->set_message(msg);
+            std::cerr << "ComputeAverage failed: " << msg << std::endl;
+            return Status(grpc::StatusCode::NOT_FOUND, msg);
+        }
+
+        double average = view.compute_average(column_name);
+        response->set_value(average);
+        response->set_success(true);
+        response->set_message("Average computed successfully.");
+        std::cout << "Successfully computed average for " << filename << ":" << column_name << std::endl;
+        return Status::OK;
+
+    } catch (const std::exception& e) {
+        response->set_success(false);
+        response->set_message(std::string("Error computing average: ") + e.what());
+        std::cerr << "ComputeAverage exception for " << filename << ":" << column_name << ": " << e.what() << std::endl;
+        return Status(grpc::StatusCode::INTERNAL, e.what());
+    }
 }
 
 Status CsvServiceImpl::ListLoadedFiles(ServerContext* context, const csvservice::Empty* request, csvservice::CsvFileList* response) {

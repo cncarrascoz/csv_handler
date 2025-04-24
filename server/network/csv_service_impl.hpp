@@ -14,6 +14,10 @@
 #include "proto/csv_service.pb.h"      // Protobuf message definitions
 #include "server_registry.hpp"
 
+// Added for gRPC client functionality used in forward_to_leader
+#include <grpcpp/create_channel.h>
+#include <grpcpp/security/credentials.h>
+
 namespace network {
 
 class CsvServiceImpl final : public csvservice::CsvService::Service {
@@ -106,7 +110,81 @@ private:
     bool forward_to_leader_if_needed(
         const RequestType* request,
         ResponseType* response,
-        std::function<grpc::Status(const RequestType*, ResponseType*)> handler);
+        std::function<grpc::Status(const RequestType*, ResponseType*)> handler)
+    {
+        if (registry_.is_leader()) {
+            // This server is the leader, execute locally
+            // Note: The handler function passed in will modify the response directly
+            return false; // Not forwarded
+        }
+
+        // This server is a follower, forward to the leader
+        std::string leader_address = registry_.get_leader();
+        if (leader_address.empty()) {
+            // No leader known, cannot forward
+            response->set_success(false);
+            response->set_message("Cannot process request: No leader identified.");
+            // We might want a more specific gRPC status code here
+            // For simplicity, the caller will handle the status based on response->success()
+            return true; // Indicate forwarding was attempted but failed pre-flight
+        }
+
+        // Create a gRPC channel and stub to communicate with the leader
+        auto channel = grpc::CreateChannel(leader_address, grpc::InsecureChannelCredentials());
+        if (!channel) {
+             response->set_success(false);
+             response->set_message("Cannot process request: Failed to create channel to leader at " + leader_address);
+             return true;
+        }
+        auto stub = csvservice::CsvService::NewStub(channel);
+        if (!stub) {
+             response->set_success(false);
+             response->set_message("Cannot process request: Failed to create stub for leader at " + leader_address);
+             return true;
+        }
+
+        grpc::ClientContext context;
+        // Set a deadline for the RPC call (e.g., 5 seconds)
+        std::chrono::system_clock::time_point deadline = std::chrono::system_clock::now() + std::chrono::seconds(5);
+        context.set_deadline(deadline);
+
+        // Determine which RPC method to call on the leader based on request type
+        // This requires mapping RequestType to the corresponding stub method.
+        // This is a limitation of this generic approach. We need specific logic per request type.
+        // For now, assuming InsertRow and DeleteRow are the only forwarded types based on current usage.
+        grpc::Status status;
+        if constexpr (std::is_same_v<RequestType, csvservice::InsertRowRequest>) {
+            // Assume response type is csvservice::ModificationResponse based on InsertRow definition
+            if constexpr (std::is_same_v<ResponseType, csvservice::ModificationResponse>) {
+                 status = stub->InsertRow(&context, *request, response);
+            } else {
+                 // Mismatched response type for InsertRow
+                 status = grpc::Status(grpc::StatusCode::INTERNAL, "Internal error: Mismatched response type for forwarded InsertRow");
+            }
+        } else if constexpr (std::is_same_v<RequestType, csvservice::DeleteRowRequest>) {
+            // Assume response type is csvservice::ModificationResponse based on DeleteRow definition
+            if constexpr (std::is_same_v<ResponseType, csvservice::ModificationResponse>) {
+                 status = stub->DeleteRow(&context, *request, response);
+            } else {
+                 // Mismatched response type for DeleteRow
+                  status = grpc::Status(grpc::StatusCode::INTERNAL, "Internal error: Mismatched response type for forwarded DeleteRow");
+            }
+        } else {
+            // Handle other potential request types or indicate an error
+            // For now, we only handle InsertRow and DeleteRow forwarding explicitly
+            status = grpc::Status(grpc::StatusCode::UNIMPLEMENTED, "Forwarding not implemented for this request type");
+        }
+
+        // Check the status of the RPC call to the leader
+        if (!status.ok()) {
+            response->set_success(false);
+            response->set_message("Failed to forward request to leader: " + status.error_message());
+        } 
+        // If status.ok(), the 'response' object should have been populated by the leader's successful execution.
+        // The leader's handler would have set success/message.
+
+        return true; // Indicate request was forwarded (or attempt was made)
+    }
 };
 
 } // namespace network
