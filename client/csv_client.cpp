@@ -25,9 +25,10 @@ Status CsvClient::MakeRpcCallWithRetry(
     const RequestType& request,
     ResponseType* response
 ) {
+    std::cout << "[RPC Debug] Entering MakeRpcCallWithRetry for method." << std::endl;
     // 1. Ensure connection
     if (!stub_) {
-        std::cout << "No active connection. Attempting to connect..." << std::endl;
+        std::cout << "[RPC Debug] No active stub. Attempting connect()..." << std::endl;
         if (!connect()) {
             // Return specific status if connection failed entirely
             return Status(grpc::StatusCode::UNAVAILABLE, "Cannot make RPC call, no connection available.");
@@ -47,6 +48,7 @@ Status CsvClient::MakeRpcCallWithRetry(
     context.set_deadline(deadline);
 
     // Call the gRPC method using the provided pointer-to-member function
+    std::cout << "[RPC Debug] Attempting RPC on current server: " << current_server_address_ << std::endl;
     Status status = (stub_.get()->*method_ptr)(&context, request, response);
 
     // 3. Handle failure and potential retry
@@ -59,7 +61,7 @@ Status CsvClient::MakeRpcCallWithRetry(
             status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED ||
             status.error_code() == grpc::StatusCode::INTERNAL) { // Also retry on some internal errors?
 
-            std::cout << "Attempting to reconnect and retry..." << std::endl;
+            std::cout << "[RPC Debug] Retrying RPC call after failure. Attempting connect() for new server..." << std::endl;
             // connect() tries the next available server
             if (connect()) {
                  // Ensure stub is valid after reconnect attempt
@@ -73,7 +75,7 @@ Status CsvClient::MakeRpcCallWithRetry(
                     std::chrono::system_clock::now() + std::chrono::seconds(5); // Use same timeout for retry
                 retry_context.set_deadline(retry_deadline);
 
-                std::cout << "Retrying RPC on new server: " << current_server_address_ << "..." << std::endl;
+                std::cout << "[RPC Debug] Retrying RPC on newly connected server: " << current_server_address_ << "..." << std::endl;
                 // Retry the call
                 status = (stub_.get()->*method_ptr)(&retry_context, request, response);
 
@@ -81,10 +83,10 @@ Status CsvClient::MakeRpcCallWithRetry(
                     std::cerr << "Retry failed on " << current_server_address_ << ": "
                               << status.error_code() << ": " << status.error_message() << std::endl;
                 } else {
-                     std::cout << "Retry successful on " << current_server_address_ << "." << std::endl;
+                     std::cout << "[RPC Debug] Retry successful on " << current_server_address_ << "." << std::endl;
                 }
             } else {
-                std::cerr << "Failed to reconnect to any server. Aborting retry." << std::endl;
+                std::cerr << "[RPC Debug] Failed to reconnect to any server during retry. Aborting." << std::endl;
                 // Keep the original error status if reconnection failed
             }
         } else {
@@ -117,6 +119,7 @@ bool CsvClient::connect() {
         std::cerr << "Error: No server addresses configured." << std::endl;
         return false;
     }
+    std::cout << "[Connect Debug] Entering connect(). Current index: " << current_server_index_ << std::endl;
 
     std::lock_guard<std::mutex> lock(reconnect_mutex_); // Ensure only one thread reconnects
 
@@ -124,7 +127,8 @@ bool CsvClient::connect() {
     size_t attempts = 0;
     while (attempts < server_addresses_.size()) {
         current_server_address_ = server_addresses_[current_server_index_];
-        std::cout << "Attempting to connect to " << current_server_address_ << "..." << std::endl;
+        std::cout << "[Connect Debug] Attempting connection to: " << current_server_address_
+                  << " (Attempt " << attempts + 1 << "/" << server_addresses_.size() << ")" << std::endl;
 
         // Create a new channel for the current attempt
         channel_ = grpc::CreateChannel(current_server_address_, grpc::InsecureChannelCredentials());
@@ -137,9 +141,11 @@ bool CsvClient::connect() {
         if (channel_->WaitForConnected(deadline)) {
             stub_ = CsvService::NewStub(channel_);
             std::cout << "Connected successfully to " << current_server_address_ << "." << std::endl;
+            std::cout << "[Connect Debug] Successfully connected to: " << current_server_address_ << std::endl;
             return true; // Connection successful
         } else {
              std::cerr << "Failed to connect to " << current_server_address_ << " (timeout or error)." << std::endl;
+             std::cerr << "[Connect Debug] Connection failed for: " << current_server_address_ << ". Moving to next server." << std::endl;
             // Move to the next server index, wrapping around
             current_server_index_ = (current_server_index_ + 1) % server_addresses_.size();
             attempts++;
@@ -150,6 +156,7 @@ bool CsvClient::connect() {
     }
 
     std::cerr << "Error: Failed to connect to any server after trying all addresses." << std::endl;
+    std::cerr << "[Connect Debug] Exhausted all server addresses. Connection failed." << std::endl;
     current_server_address_ = ""; // Indicate no connection
     stub_.reset();
     channel_.reset();

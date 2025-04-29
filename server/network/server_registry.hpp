@@ -9,6 +9,7 @@
 #include <chrono>
 #include <random>
 #include <functional>
+#include <map>
 
 namespace network {
 
@@ -94,6 +95,9 @@ private:
     // Timestamp for grace period
     std::chrono::steady_clock::time_point start_time_;
     
+    // Map to track consecutive health check failures
+    std::map<std::string, int> consecutive_failures_;
+
     // Callbacks
     std::function<void(const std::string&)> leader_change_callback_;
     std::function<void(const std::vector<std::string>&)> server_list_change_callback_;

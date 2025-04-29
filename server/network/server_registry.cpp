@@ -52,6 +52,7 @@ void ServerRegistry::register_peer(const std::string& peer_address) {
     if (std::find(peer_addresses_.begin(), peer_addresses_.end(), peer_address) == peer_addresses_.end()) {
         peer_addresses_.push_back(peer_address);
         last_seen_[peer_address] = std::chrono::steady_clock::now();
+        consecutive_failures_[peer_address] = 0; // Initialize failure count
         
         std::cout << "Registered peer server: " << peer_address << std::endl;
         
@@ -76,6 +77,9 @@ void ServerRegistry::unregister_server(const std::string& server_address) {
     
     // Remove from last_seen
     last_seen_.erase(server_address);
+    
+    // Remove from consecutive_failures
+    consecutive_failures_.erase(server_address);
     
     // If the leader went down, trigger election
     if (server_address == leader_address_) {
@@ -190,7 +194,7 @@ void ServerRegistry::set_server_list_change_callback(std::function<void(const st
 void ServerRegistry::health_check_thread() {
     const auto check_interval = std::chrono::seconds(3);
     const auto rpc_deadline_ms = std::chrono::milliseconds(500);
-    const auto timeout_duration = std::chrono::seconds(10); // Must be >> check_interval
+    const auto failure_threshold = 3; // Number of consecutive failures before unregistering
     const auto grace_period = std::chrono::seconds(15); // Initial grace period
 
     while (running_) {
@@ -198,93 +202,67 @@ void ServerRegistry::health_check_thread() {
 
         std::vector<std::string> peers;
         std::string current_leader;
+        auto now = std::chrono::steady_clock::now();
         {
             std::lock_guard<std::mutex> lock(mutex_);
-            peers = peer_addresses_; // Copy to avoid holding lock during RPC
-            current_leader = leader_address_; // Copy for timeout check
+            peers = peer_addresses_;
+            current_leader = leader_address_;
         }
 
-        // Check connectivity to peers
-        for (const auto& peer : peers) {
-            try {
-                auto channel = grpc::CreateChannel(peer, grpc::InsecureChannelCredentials());
+        bool past_grace_period = (now - start_time_) > grace_period;
 
-                auto stub = CsvService::NewStub(channel);
-
-                Empty request;
-                ClusterStatusResponse response;
-                ClientContext context;
-                context.set_deadline(std::chrono::system_clock::now() + rpc_deadline_ms);
-
-                Status status = stub->GetClusterStatus(&context, request, &response);
-
-                if (status.ok()) {
-                    // Update last seen timestamp on successful ping
-                    std::lock_guard<std::mutex> lock(mutex_);
-                    last_seen_[peer] = std::chrono::steady_clock::now();
-                } else {
-                    // Log the failure but don't update last_seen_
-                    std::cerr << "Health check failed for peer " << peer << ": " << status.error_message() << std::endl;
-                }
-            } catch (const std::exception& e) {
-                std::cerr << "Exception during health check for peer " << peer << ": " << e.what() << std::endl;
-            }
-        }
-
-        // Check for timed-out peers
-        const auto now = std::chrono::steady_clock::now();
-        if (now < start_time_ + grace_period) {
+        if (!past_grace_period) {
             std::cout << "Grace period active, skipping timeout checks for now..." << std::endl;
-            continue; // Skip timeout logic during grace period
         }
 
         std::vector<std::string> servers_to_unregister;
-        {
+
+        for (const auto& peer : peers) {
+            // Create a temporary stub for the health check
+            auto channel = grpc::CreateChannel(peer, grpc::InsecureChannelCredentials());
+            auto stub = CsvService::NewStub(channel);
+
+            Empty request;
+            ClusterStatusResponse response;
+            ClientContext context;
+            context.set_deadline(std::chrono::system_clock::now() + rpc_deadline_ms);
+
+            Status status = stub->GetClusterStatus(&context, request, &response);
+
             std::lock_guard<std::mutex> lock(mutex_);
-            // Iterate through registered peers to check for timeouts
-            // Note: We iterate through peer_addresses_ and check last_seen_.
-            // This ensures we only consider peers that *should* be active.
-            for (const auto& server_addr : peer_addresses_) {
-                // Don't time out self
-                if (server_addr == self_address_) {
-                    continue;
-                }
+            if (status.ok()) {
+                // Peer is healthy, update last seen time and reset failure count
+                last_seen_[peer] = now;
+                consecutive_failures_[peer] = 0; // Reset failure count on success
+                // std::cout << "Health check successful for peer " << peer << std::endl; // Optional: Verbose success log
+            } else {
+                // Peer failed health check
+                std::cerr << "Health check failed for peer " << peer << ": " << status.error_message() << std::endl;
+                
+                // Increment consecutive failure count
+                consecutive_failures_[peer]++;
+                std::cerr << "Consecutive failures for " << peer << ": " << consecutive_failures_[peer] << std::endl;
 
-                // Check if the peer has ever been seen and if it has timed out
-                auto it = last_seen_.find(server_addr);
-                if (it != last_seen_.end()) {
-                    // Peer has been seen before, check the time
-                    const auto last_seen_time = it->second;
-                    if (now - last_seen_time > timeout_duration) {
-                        std::cout << "Server " << server_addr << " timed out (last seen > " 
-                                  << std::chrono::duration_cast<std::chrono::seconds>(timeout_duration).count() 
-                                  << "s ago)." << std::endl;
-                        servers_to_unregister.push_back(server_addr);
-                        // Note: We don't erase from last_seen_ here, unregister_server handles that
-                    }
+                // Check if we should unregister this peer (past grace period AND failure threshold met)
+                if (past_grace_period && consecutive_failures_[peer] >= failure_threshold) {
+                    std::cerr << "Server " << peer << " exceeded failure threshold (" 
+                              << consecutive_failures_[peer] << " >= " << failure_threshold 
+                              << ") after grace period. Marking for unregistration." << std::endl;
+                    servers_to_unregister.push_back(peer);
+                } else if (!past_grace_period) {
+                    std::cerr << "Still within grace period, not unregistering " << peer << " yet." << std::endl;
                 } else {
-                    // Peer has never been successfully contacted. Don't time it out yet.
-                    // The health check loop will keep trying to contact it.
-                    // Optional: Could add a counter for initial connection failures if needed.
-                    std::cout << "Peer " << server_addr << " has not responded to initial health checks yet." << std::endl;
+                     std::cerr << "Failure count for " << peer << " (" << consecutive_failures_[peer] << ") below threshold (" << failure_threshold << ")." << std::endl;
                 }
             }
         }
 
-        // Unregister timed-out servers outside the lock
-        bool leader_timed_out = false;
-        for (const auto& server_address : servers_to_unregister) { 
-            unregister_server(server_address);
-            if (server_address == current_leader) {
-                leader_timed_out = true;
-            }
-        }
-        // If the leader specifically timed out, trigger an election check immediately
-        // The leader_election_thread will handle the actual election logic
-        if (leader_timed_out) {
-             std::cout << "Leader " << current_leader << " timed out, ensuring election check." << std::endl;
-             // No explicit action needed here, unregister_server already cleared leader_address_ 
-             // if the unregistered server was the leader. leader_election_thread will pick it up.
+        // Unregister marked servers (outside the peer loop to avoid iterator invalidation)
+        for (const auto& server_addr : servers_to_unregister) {
+            unregister_server(server_addr); // This locks mutex internally
+            // Also remove from consecutive_failures map when unregistered
+            std::lock_guard<std::mutex> lock(mutex_);
+            consecutive_failures_.erase(server_addr);
         }
     }
 }
