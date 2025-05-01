@@ -95,12 +95,24 @@ extern RegisterPeerRequestDefaultTypeInternal _RegisterPeerRequest_default_insta
 class RegisterPeerResponse;
 struct RegisterPeerResponseDefaultTypeInternal;
 extern RegisterPeerResponseDefaultTypeInternal _RegisterPeerResponse_default_instance_;
+class ReplicateMutationRequest;
+struct ReplicateMutationRequestDefaultTypeInternal;
+extern ReplicateMutationRequestDefaultTypeInternal _ReplicateMutationRequest_default_instance_;
+class ReplicateMutationResponse;
+struct ReplicateMutationResponseDefaultTypeInternal;
+extern ReplicateMutationResponseDefaultTypeInternal _ReplicateMutationResponse_default_instance_;
 class ReplicateUploadResponse;
 struct ReplicateUploadResponseDefaultTypeInternal;
 extern ReplicateUploadResponseDefaultTypeInternal _ReplicateUploadResponse_default_instance_;
 class Row;
 struct RowDefaultTypeInternal;
 extern RowDefaultTypeInternal _Row_default_instance_;
+class RowDeleteMutation;
+struct RowDeleteMutationDefaultTypeInternal;
+extern RowDeleteMutationDefaultTypeInternal _RowDeleteMutation_default_instance_;
+class RowInsertMutation;
+struct RowInsertMutationDefaultTypeInternal;
+extern RowInsertMutationDefaultTypeInternal _RowInsertMutation_default_instance_;
 class ViewFileRequest;
 struct ViewFileRequestDefaultTypeInternal;
 extern ViewFileRequestDefaultTypeInternal _ViewFileRequest_default_instance_;
@@ -308,6 +320,398 @@ class ViewFileRequest final : public ::google::protobuf::Message
                           ::google::protobuf::Arena* arena, const Impl_& from,
                           const ViewFileRequest& from_msg);
     ::google::protobuf::internal::ArenaStringPtr filename_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_proto_2fcsv_5fservice_2eproto;
+};
+// -------------------------------------------------------------------
+
+class RowInsertMutation final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:csvservice.RowInsertMutation) */ {
+ public:
+  inline RowInsertMutation() : RowInsertMutation(nullptr) {}
+  ~RowInsertMutation() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(RowInsertMutation* msg, std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(RowInsertMutation));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR RowInsertMutation(
+      ::google::protobuf::internal::ConstantInitialized);
+
+  inline RowInsertMutation(const RowInsertMutation& from) : RowInsertMutation(nullptr, from) {}
+  inline RowInsertMutation(RowInsertMutation&& from) noexcept
+      : RowInsertMutation(nullptr, std::move(from)) {}
+  inline RowInsertMutation& operator=(const RowInsertMutation& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline RowInsertMutation& operator=(RowInsertMutation&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const RowInsertMutation& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const RowInsertMutation* internal_default_instance() {
+    return reinterpret_cast<const RowInsertMutation*>(
+        &_RowInsertMutation_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 19;
+  friend void swap(RowInsertMutation& a, RowInsertMutation& b) { a.Swap(&b); }
+  inline void Swap(RowInsertMutation* other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(RowInsertMutation* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  RowInsertMutation* New(::google::protobuf::Arena* arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<RowInsertMutation>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const RowInsertMutation& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const RowInsertMutation& from) { RowInsertMutation::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(
+      ::google::protobuf::MessageLite& to_msg,
+      const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* _InternalSerialize(
+      const MessageLite& msg, ::uint8_t* target,
+      ::google::protobuf::io::EpsCopyOutputStream* stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target,
+      ::google::protobuf::io::EpsCopyOutputStream* stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target,
+      ::google::protobuf::io::EpsCopyOutputStream* stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(RowInsertMutation* other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(
+      ::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "csvservice.RowInsertMutation"; }
+
+ protected:
+  explicit RowInsertMutation(::google::protobuf::Arena* arena);
+  RowInsertMutation(::google::protobuf::Arena* arena, const RowInsertMutation& from);
+  RowInsertMutation(::google::protobuf::Arena* arena, RowInsertMutation&& from) noexcept
+      : RowInsertMutation(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* GetClassData() const PROTOBUF_FINAL;
+  static void* PlacementNew_(const void*, void* mem,
+                             ::google::protobuf::Arena* arena);
+  static constexpr auto InternalNewImpl_();
+  static const ::google::protobuf::internal::ClassDataFull _class_data_;
+
+ public:
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kValuesFieldNumber = 1,
+  };
+  // repeated string values = 1;
+  int values_size() const;
+  private:
+  int _internal_values_size() const;
+
+  public:
+  void clear_values() ;
+  const std::string& values(int index) const;
+  std::string* mutable_values(int index);
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_values(int index, Arg_&& value, Args_... args);
+  std::string* add_values();
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void add_values(Arg_&& value, Args_... args);
+  const ::google::protobuf::RepeatedPtrField<std::string>& values() const;
+  ::google::protobuf::RepeatedPtrField<std::string>* mutable_values();
+
+  private:
+  const ::google::protobuf::RepeatedPtrField<std::string>& _internal_values() const;
+  ::google::protobuf::RepeatedPtrField<std::string>* _internal_mutable_values();
+
+  public:
+  // @@protoc_insertion_point(class_scope:csvservice.RowInsertMutation)
+ private:
+  class _Internal;
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<
+      0, 1, 0,
+      43, 2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(
+        ::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(::google::protobuf::internal::InternalVisibility visibility,
+                          ::google::protobuf::Arena* arena);
+    inline explicit Impl_(::google::protobuf::internal::InternalVisibility visibility,
+                          ::google::protobuf::Arena* arena, const Impl_& from,
+                          const RowInsertMutation& from_msg);
+    ::google::protobuf::RepeatedPtrField<std::string> values_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_proto_2fcsv_5fservice_2eproto;
+};
+// -------------------------------------------------------------------
+
+class RowDeleteMutation final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:csvservice.RowDeleteMutation) */ {
+ public:
+  inline RowDeleteMutation() : RowDeleteMutation(nullptr) {}
+  ~RowDeleteMutation() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(RowDeleteMutation* msg, std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(RowDeleteMutation));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR RowDeleteMutation(
+      ::google::protobuf::internal::ConstantInitialized);
+
+  inline RowDeleteMutation(const RowDeleteMutation& from) : RowDeleteMutation(nullptr, from) {}
+  inline RowDeleteMutation(RowDeleteMutation&& from) noexcept
+      : RowDeleteMutation(nullptr, std::move(from)) {}
+  inline RowDeleteMutation& operator=(const RowDeleteMutation& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline RowDeleteMutation& operator=(RowDeleteMutation&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const RowDeleteMutation& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const RowDeleteMutation* internal_default_instance() {
+    return reinterpret_cast<const RowDeleteMutation*>(
+        &_RowDeleteMutation_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 20;
+  friend void swap(RowDeleteMutation& a, RowDeleteMutation& b) { a.Swap(&b); }
+  inline void Swap(RowDeleteMutation* other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(RowDeleteMutation* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  RowDeleteMutation* New(::google::protobuf::Arena* arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<RowDeleteMutation>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const RowDeleteMutation& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const RowDeleteMutation& from) { RowDeleteMutation::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(
+      ::google::protobuf::MessageLite& to_msg,
+      const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* _InternalSerialize(
+      const MessageLite& msg, ::uint8_t* target,
+      ::google::protobuf::io::EpsCopyOutputStream* stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target,
+      ::google::protobuf::io::EpsCopyOutputStream* stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target,
+      ::google::protobuf::io::EpsCopyOutputStream* stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(RowDeleteMutation* other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(
+      ::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "csvservice.RowDeleteMutation"; }
+
+ protected:
+  explicit RowDeleteMutation(::google::protobuf::Arena* arena);
+  RowDeleteMutation(::google::protobuf::Arena* arena, const RowDeleteMutation& from);
+  RowDeleteMutation(::google::protobuf::Arena* arena, RowDeleteMutation&& from) noexcept
+      : RowDeleteMutation(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* GetClassData() const PROTOBUF_FINAL;
+  static void* PlacementNew_(const void*, void* mem,
+                             ::google::protobuf::Arena* arena);
+  static constexpr auto InternalNewImpl_();
+  static const ::google::protobuf::internal::ClassDataFull _class_data_;
+
+ public:
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kRowIndexFieldNumber = 1,
+  };
+  // int32 row_index = 1;
+  void clear_row_index() ;
+  ::int32_t row_index() const;
+  void set_row_index(::int32_t value);
+
+  private:
+  ::int32_t _internal_row_index() const;
+  void _internal_set_row_index(::int32_t value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:csvservice.RowDeleteMutation)
+ private:
+  class _Internal;
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<
+      0, 1, 0,
+      0, 2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(
+        ::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(::google::protobuf::internal::InternalVisibility visibility,
+                          ::google::protobuf::Arena* arena);
+    inline explicit Impl_(::google::protobuf::internal::InternalVisibility visibility,
+                          ::google::protobuf::Arena* arena, const Impl_& from,
+                          const RowDeleteMutation& from_msg);
+    ::int32_t row_index_;
     ::google::protobuf::internal::CachedSize _cached_size_;
     PROTOBUF_TSAN_DECLARE_MEMBER
   };
@@ -716,6 +1120,214 @@ class ReplicateUploadResponse final : public ::google::protobuf::Message
     inline explicit Impl_(::google::protobuf::internal::InternalVisibility visibility,
                           ::google::protobuf::Arena* arena, const Impl_& from,
                           const ReplicateUploadResponse& from_msg);
+    ::google::protobuf::internal::ArenaStringPtr message_;
+    bool success_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_proto_2fcsv_5fservice_2eproto;
+};
+// -------------------------------------------------------------------
+
+class ReplicateMutationResponse final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:csvservice.ReplicateMutationResponse) */ {
+ public:
+  inline ReplicateMutationResponse() : ReplicateMutationResponse(nullptr) {}
+  ~ReplicateMutationResponse() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(ReplicateMutationResponse* msg, std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(ReplicateMutationResponse));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR ReplicateMutationResponse(
+      ::google::protobuf::internal::ConstantInitialized);
+
+  inline ReplicateMutationResponse(const ReplicateMutationResponse& from) : ReplicateMutationResponse(nullptr, from) {}
+  inline ReplicateMutationResponse(ReplicateMutationResponse&& from) noexcept
+      : ReplicateMutationResponse(nullptr, std::move(from)) {}
+  inline ReplicateMutationResponse& operator=(const ReplicateMutationResponse& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline ReplicateMutationResponse& operator=(ReplicateMutationResponse&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const ReplicateMutationResponse& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const ReplicateMutationResponse* internal_default_instance() {
+    return reinterpret_cast<const ReplicateMutationResponse*>(
+        &_ReplicateMutationResponse_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 21;
+  friend void swap(ReplicateMutationResponse& a, ReplicateMutationResponse& b) { a.Swap(&b); }
+  inline void Swap(ReplicateMutationResponse* other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(ReplicateMutationResponse* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  ReplicateMutationResponse* New(::google::protobuf::Arena* arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<ReplicateMutationResponse>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const ReplicateMutationResponse& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const ReplicateMutationResponse& from) { ReplicateMutationResponse::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(
+      ::google::protobuf::MessageLite& to_msg,
+      const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* _InternalSerialize(
+      const MessageLite& msg, ::uint8_t* target,
+      ::google::protobuf::io::EpsCopyOutputStream* stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target,
+      ::google::protobuf::io::EpsCopyOutputStream* stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target,
+      ::google::protobuf::io::EpsCopyOutputStream* stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(ReplicateMutationResponse* other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(
+      ::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "csvservice.ReplicateMutationResponse"; }
+
+ protected:
+  explicit ReplicateMutationResponse(::google::protobuf::Arena* arena);
+  ReplicateMutationResponse(::google::protobuf::Arena* arena, const ReplicateMutationResponse& from);
+  ReplicateMutationResponse(::google::protobuf::Arena* arena, ReplicateMutationResponse&& from) noexcept
+      : ReplicateMutationResponse(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* GetClassData() const PROTOBUF_FINAL;
+  static void* PlacementNew_(const void*, void* mem,
+                             ::google::protobuf::Arena* arena);
+  static constexpr auto InternalNewImpl_();
+  static const ::google::protobuf::internal::ClassDataFull _class_data_;
+
+ public:
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kMessageFieldNumber = 2,
+    kSuccessFieldNumber = 1,
+  };
+  // string message = 2;
+  void clear_message() ;
+  const std::string& message() const;
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_message(Arg_&& arg, Args_... args);
+  std::string* mutable_message();
+  PROTOBUF_NODISCARD std::string* release_message();
+  void set_allocated_message(std::string* value);
+
+  private:
+  const std::string& _internal_message() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_message(
+      const std::string& value);
+  std::string* _internal_mutable_message();
+
+  public:
+  // bool success = 1;
+  void clear_success() ;
+  bool success() const;
+  void set_success(bool value);
+
+  private:
+  bool _internal_success() const;
+  void _internal_set_success(bool value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:csvservice.ReplicateMutationResponse)
+ private:
+  class _Internal;
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<
+      1, 2, 0,
+      52, 2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(
+        ::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(::google::protobuf::internal::InternalVisibility visibility,
+                          ::google::protobuf::Arena* arena);
+    inline explicit Impl_(::google::protobuf::internal::InternalVisibility visibility,
+                          ::google::protobuf::Arena* arena, const Impl_& from,
+                          const ReplicateMutationResponse& from_msg);
     ::google::protobuf::internal::ArenaStringPtr message_;
     bool success_;
     ::google::protobuf::internal::CachedSize _cached_size_;
@@ -3938,6 +4550,260 @@ class ViewFileResponse final : public ::google::protobuf::Message
   union { Impl_ _impl_; };
   friend struct ::TableStruct_proto_2fcsv_5fservice_2eproto;
 };
+// -------------------------------------------------------------------
+
+class ReplicateMutationRequest final : public ::google::protobuf::Message
+/* @@protoc_insertion_point(class_definition:csvservice.ReplicateMutationRequest) */ {
+ public:
+  inline ReplicateMutationRequest() : ReplicateMutationRequest(nullptr) {}
+  ~ReplicateMutationRequest() PROTOBUF_FINAL;
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+  void operator delete(ReplicateMutationRequest* msg, std::destroying_delete_t) {
+    SharedDtor(*msg);
+    ::google::protobuf::internal::SizedDelete(msg, sizeof(ReplicateMutationRequest));
+  }
+#endif
+
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR ReplicateMutationRequest(
+      ::google::protobuf::internal::ConstantInitialized);
+
+  inline ReplicateMutationRequest(const ReplicateMutationRequest& from) : ReplicateMutationRequest(nullptr, from) {}
+  inline ReplicateMutationRequest(ReplicateMutationRequest&& from) noexcept
+      : ReplicateMutationRequest(nullptr, std::move(from)) {}
+  inline ReplicateMutationRequest& operator=(const ReplicateMutationRequest& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline ReplicateMutationRequest& operator=(ReplicateMutationRequest&& from) noexcept {
+    if (this == &from) return *this;
+    if (::google::protobuf::internal::CanMoveWithInternalSwap(GetArena(), from.GetArena())) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::google::protobuf::UnknownFieldSet& unknown_fields() const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance);
+  }
+  inline ::google::protobuf::UnknownFieldSet* mutable_unknown_fields()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    return _internal_metadata_.mutable_unknown_fields<::google::protobuf::UnknownFieldSet>();
+  }
+
+  static const ::google::protobuf::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::google::protobuf::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::google::protobuf::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const ReplicateMutationRequest& default_instance() {
+    return *internal_default_instance();
+  }
+  enum MutationTypeCase {
+    kRowInsert = 2,
+    kRowDelete = 3,
+    MUTATION_TYPE_NOT_SET = 0,
+  };
+  static inline const ReplicateMutationRequest* internal_default_instance() {
+    return reinterpret_cast<const ReplicateMutationRequest*>(
+        &_ReplicateMutationRequest_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages = 18;
+  friend void swap(ReplicateMutationRequest& a, ReplicateMutationRequest& b) { a.Swap(&b); }
+  inline void Swap(ReplicateMutationRequest* other) {
+    if (other == this) return;
+    if (::google::protobuf::internal::CanUseInternalSwap(GetArena(), other->GetArena())) {
+      InternalSwap(other);
+    } else {
+      ::google::protobuf::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(ReplicateMutationRequest* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetArena() == other->GetArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  ReplicateMutationRequest* New(::google::protobuf::Arena* arena = nullptr) const {
+    return ::google::protobuf::Message::DefaultConstruct<ReplicateMutationRequest>(arena);
+  }
+  using ::google::protobuf::Message::CopyFrom;
+  void CopyFrom(const ReplicateMutationRequest& from);
+  using ::google::protobuf::Message::MergeFrom;
+  void MergeFrom(const ReplicateMutationRequest& from) { ReplicateMutationRequest::MergeImpl(*this, from); }
+
+  private:
+  static void MergeImpl(
+      ::google::protobuf::MessageLite& to_msg,
+      const ::google::protobuf::MessageLite& from_msg);
+
+  public:
+  bool IsInitialized() const {
+    return true;
+  }
+  ABSL_ATTRIBUTE_REINITIALIZES void Clear() PROTOBUF_FINAL;
+  #if defined(PROTOBUF_CUSTOM_VTABLE)
+  private:
+  static ::size_t ByteSizeLong(const ::google::protobuf::MessageLite& msg);
+  static ::uint8_t* _InternalSerialize(
+      const MessageLite& msg, ::uint8_t* target,
+      ::google::protobuf::io::EpsCopyOutputStream* stream);
+
+  public:
+  ::size_t ByteSizeLong() const { return ByteSizeLong(*this); }
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target,
+      ::google::protobuf::io::EpsCopyOutputStream* stream) const {
+    return _InternalSerialize(*this, target, stream);
+  }
+  #else   // PROTOBUF_CUSTOM_VTABLE
+  ::size_t ByteSizeLong() const final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target,
+      ::google::protobuf::io::EpsCopyOutputStream* stream) const final;
+  #endif  // PROTOBUF_CUSTOM_VTABLE
+  int GetCachedSize() const { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::google::protobuf::Arena* arena);
+  static void SharedDtor(MessageLite& self);
+  void InternalSwap(ReplicateMutationRequest* other);
+ private:
+  template <typename T>
+  friend ::absl::string_view(
+      ::google::protobuf::internal::GetAnyMessageName)();
+  static ::absl::string_view FullMessageName() { return "csvservice.ReplicateMutationRequest"; }
+
+ protected:
+  explicit ReplicateMutationRequest(::google::protobuf::Arena* arena);
+  ReplicateMutationRequest(::google::protobuf::Arena* arena, const ReplicateMutationRequest& from);
+  ReplicateMutationRequest(::google::protobuf::Arena* arena, ReplicateMutationRequest&& from) noexcept
+      : ReplicateMutationRequest(arena) {
+    *this = ::std::move(from);
+  }
+  const ::google::protobuf::internal::ClassData* GetClassData() const PROTOBUF_FINAL;
+  static void* PlacementNew_(const void*, void* mem,
+                             ::google::protobuf::Arena* arena);
+  static constexpr auto InternalNewImpl_();
+  static const ::google::protobuf::internal::ClassDataFull _class_data_;
+
+ public:
+  ::google::protobuf::Metadata GetMetadata() const;
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+  enum : int {
+    kFilenameFieldNumber = 1,
+    kRowInsertFieldNumber = 2,
+    kRowDeleteFieldNumber = 3,
+  };
+  // string filename = 1;
+  void clear_filename() ;
+  const std::string& filename() const;
+  template <typename Arg_ = const std::string&, typename... Args_>
+  void set_filename(Arg_&& arg, Args_... args);
+  std::string* mutable_filename();
+  PROTOBUF_NODISCARD std::string* release_filename();
+  void set_allocated_filename(std::string* value);
+
+  private:
+  const std::string& _internal_filename() const;
+  inline PROTOBUF_ALWAYS_INLINE void _internal_set_filename(
+      const std::string& value);
+  std::string* _internal_mutable_filename();
+
+  public:
+  // .csvservice.RowInsertMutation row_insert = 2;
+  bool has_row_insert() const;
+  private:
+  bool _internal_has_row_insert() const;
+
+  public:
+  void clear_row_insert() ;
+  const ::csvservice::RowInsertMutation& row_insert() const;
+  PROTOBUF_NODISCARD ::csvservice::RowInsertMutation* release_row_insert();
+  ::csvservice::RowInsertMutation* mutable_row_insert();
+  void set_allocated_row_insert(::csvservice::RowInsertMutation* value);
+  void unsafe_arena_set_allocated_row_insert(::csvservice::RowInsertMutation* value);
+  ::csvservice::RowInsertMutation* unsafe_arena_release_row_insert();
+
+  private:
+  const ::csvservice::RowInsertMutation& _internal_row_insert() const;
+  ::csvservice::RowInsertMutation* _internal_mutable_row_insert();
+
+  public:
+  // .csvservice.RowDeleteMutation row_delete = 3;
+  bool has_row_delete() const;
+  private:
+  bool _internal_has_row_delete() const;
+
+  public:
+  void clear_row_delete() ;
+  const ::csvservice::RowDeleteMutation& row_delete() const;
+  PROTOBUF_NODISCARD ::csvservice::RowDeleteMutation* release_row_delete();
+  ::csvservice::RowDeleteMutation* mutable_row_delete();
+  void set_allocated_row_delete(::csvservice::RowDeleteMutation* value);
+  void unsafe_arena_set_allocated_row_delete(::csvservice::RowDeleteMutation* value);
+  ::csvservice::RowDeleteMutation* unsafe_arena_release_row_delete();
+
+  private:
+  const ::csvservice::RowDeleteMutation& _internal_row_delete() const;
+  ::csvservice::RowDeleteMutation* _internal_mutable_row_delete();
+
+  public:
+  void clear_mutation_type();
+  MutationTypeCase mutation_type_case() const;
+  // @@protoc_insertion_point(class_scope:csvservice.ReplicateMutationRequest)
+ private:
+  class _Internal;
+  void set_has_row_insert();
+  void set_has_row_delete();
+  inline bool has_mutation_type() const;
+  inline void clear_has_mutation_type();
+  friend class ::google::protobuf::internal::TcParser;
+  static const ::google::protobuf::internal::TcParseTable<
+      0, 3, 2,
+      52, 2>
+      _table_;
+
+  friend class ::google::protobuf::MessageLite;
+  friend class ::google::protobuf::Arena;
+  template <typename T>
+  friend class ::google::protobuf::Arena::InternalHelper;
+  using InternalArenaConstructable_ = void;
+  using DestructorSkippable_ = void;
+  struct Impl_ {
+    inline explicit constexpr Impl_(
+        ::google::protobuf::internal::ConstantInitialized) noexcept;
+    inline explicit Impl_(::google::protobuf::internal::InternalVisibility visibility,
+                          ::google::protobuf::Arena* arena);
+    inline explicit Impl_(::google::protobuf::internal::InternalVisibility visibility,
+                          ::google::protobuf::Arena* arena, const Impl_& from,
+                          const ReplicateMutationRequest& from_msg);
+    ::google::protobuf::internal::ArenaStringPtr filename_;
+    union MutationTypeUnion {
+      constexpr MutationTypeUnion() : _constinit_{} {}
+      ::google::protobuf::internal::ConstantInitialized _constinit_;
+      ::csvservice::RowInsertMutation* row_insert_;
+      ::csvservice::RowDeleteMutation* row_delete_;
+    } mutation_type_;
+    ::google::protobuf::internal::CachedSize _cached_size_;
+    ::uint32_t _oneof_case_[1];
+    PROTOBUF_TSAN_DECLARE_MEMBER
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_proto_2fcsv_5fservice_2eproto;
+};
 
 // ===================================================================
 
@@ -5610,6 +6476,393 @@ inline void ReplicateUploadResponse::set_allocated_message(std::string* value) {
     _impl_.message_.Set("", GetArena());
   }
   // @@protoc_insertion_point(field_set_allocated:csvservice.ReplicateUploadResponse.message)
+}
+
+// -------------------------------------------------------------------
+
+// ReplicateMutationRequest
+
+// string filename = 1;
+inline void ReplicateMutationRequest::clear_filename() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.filename_.ClearToEmpty();
+}
+inline const std::string& ReplicateMutationRequest::filename() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:csvservice.ReplicateMutationRequest.filename)
+  return _internal_filename();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void ReplicateMutationRequest::set_filename(Arg_&& arg,
+                                                     Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.filename_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:csvservice.ReplicateMutationRequest.filename)
+}
+inline std::string* ReplicateMutationRequest::mutable_filename() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  std::string* _s = _internal_mutable_filename();
+  // @@protoc_insertion_point(field_mutable:csvservice.ReplicateMutationRequest.filename)
+  return _s;
+}
+inline const std::string& ReplicateMutationRequest::_internal_filename() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.filename_.Get();
+}
+inline void ReplicateMutationRequest::_internal_set_filename(const std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.filename_.Set(value, GetArena());
+}
+inline std::string* ReplicateMutationRequest::_internal_mutable_filename() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.filename_.Mutable( GetArena());
+}
+inline std::string* ReplicateMutationRequest::release_filename() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:csvservice.ReplicateMutationRequest.filename)
+  return _impl_.filename_.Release();
+}
+inline void ReplicateMutationRequest::set_allocated_filename(std::string* value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.filename_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.filename_.IsDefault()) {
+    _impl_.filename_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:csvservice.ReplicateMutationRequest.filename)
+}
+
+// .csvservice.RowInsertMutation row_insert = 2;
+inline bool ReplicateMutationRequest::has_row_insert() const {
+  return mutation_type_case() == kRowInsert;
+}
+inline bool ReplicateMutationRequest::_internal_has_row_insert() const {
+  return mutation_type_case() == kRowInsert;
+}
+inline void ReplicateMutationRequest::set_has_row_insert() {
+  _impl_._oneof_case_[0] = kRowInsert;
+}
+inline void ReplicateMutationRequest::clear_row_insert() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (mutation_type_case() == kRowInsert) {
+    if (GetArena() == nullptr) {
+      delete _impl_.mutation_type_.row_insert_;
+    } else if (::google::protobuf::internal::DebugHardenClearOneofMessageOnArena()) {
+      ::google::protobuf::internal::MaybePoisonAfterClear(_impl_.mutation_type_.row_insert_);
+    }
+    clear_has_mutation_type();
+  }
+}
+inline ::csvservice::RowInsertMutation* ReplicateMutationRequest::release_row_insert() {
+  // @@protoc_insertion_point(field_release:csvservice.ReplicateMutationRequest.row_insert)
+  if (mutation_type_case() == kRowInsert) {
+    clear_has_mutation_type();
+    auto* temp = _impl_.mutation_type_.row_insert_;
+    if (GetArena() != nullptr) {
+      temp = ::google::protobuf::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.mutation_type_.row_insert_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::csvservice::RowInsertMutation& ReplicateMutationRequest::_internal_row_insert() const {
+  return mutation_type_case() == kRowInsert ? *_impl_.mutation_type_.row_insert_ : reinterpret_cast<::csvservice::RowInsertMutation&>(::csvservice::_RowInsertMutation_default_instance_);
+}
+inline const ::csvservice::RowInsertMutation& ReplicateMutationRequest::row_insert() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:csvservice.ReplicateMutationRequest.row_insert)
+  return _internal_row_insert();
+}
+inline ::csvservice::RowInsertMutation* ReplicateMutationRequest::unsafe_arena_release_row_insert() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:csvservice.ReplicateMutationRequest.row_insert)
+  if (mutation_type_case() == kRowInsert) {
+    clear_has_mutation_type();
+    auto* temp = _impl_.mutation_type_.row_insert_;
+    _impl_.mutation_type_.row_insert_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ReplicateMutationRequest::unsafe_arena_set_allocated_row_insert(::csvservice::RowInsertMutation* value) {
+  // We rely on the oneof clear method to free the earlier contents
+  // of this oneof. We can directly use the pointer we're given to
+  // set the new value.
+  clear_mutation_type();
+  if (value) {
+    set_has_row_insert();
+    _impl_.mutation_type_.row_insert_ = value;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:csvservice.ReplicateMutationRequest.row_insert)
+}
+inline ::csvservice::RowInsertMutation* ReplicateMutationRequest::_internal_mutable_row_insert() {
+  if (mutation_type_case() != kRowInsert) {
+    clear_mutation_type();
+    set_has_row_insert();
+    _impl_.mutation_type_.row_insert_ =
+        ::google::protobuf::Message::DefaultConstruct<::csvservice::RowInsertMutation>(GetArena());
+  }
+  return _impl_.mutation_type_.row_insert_;
+}
+inline ::csvservice::RowInsertMutation* ReplicateMutationRequest::mutable_row_insert() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::csvservice::RowInsertMutation* _msg = _internal_mutable_row_insert();
+  // @@protoc_insertion_point(field_mutable:csvservice.ReplicateMutationRequest.row_insert)
+  return _msg;
+}
+
+// .csvservice.RowDeleteMutation row_delete = 3;
+inline bool ReplicateMutationRequest::has_row_delete() const {
+  return mutation_type_case() == kRowDelete;
+}
+inline bool ReplicateMutationRequest::_internal_has_row_delete() const {
+  return mutation_type_case() == kRowDelete;
+}
+inline void ReplicateMutationRequest::set_has_row_delete() {
+  _impl_._oneof_case_[0] = kRowDelete;
+}
+inline void ReplicateMutationRequest::clear_row_delete() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  if (mutation_type_case() == kRowDelete) {
+    if (GetArena() == nullptr) {
+      delete _impl_.mutation_type_.row_delete_;
+    } else if (::google::protobuf::internal::DebugHardenClearOneofMessageOnArena()) {
+      ::google::protobuf::internal::MaybePoisonAfterClear(_impl_.mutation_type_.row_delete_);
+    }
+    clear_has_mutation_type();
+  }
+}
+inline ::csvservice::RowDeleteMutation* ReplicateMutationRequest::release_row_delete() {
+  // @@protoc_insertion_point(field_release:csvservice.ReplicateMutationRequest.row_delete)
+  if (mutation_type_case() == kRowDelete) {
+    clear_has_mutation_type();
+    auto* temp = _impl_.mutation_type_.row_delete_;
+    if (GetArena() != nullptr) {
+      temp = ::google::protobuf::internal::DuplicateIfNonNull(temp);
+    }
+    _impl_.mutation_type_.row_delete_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline const ::csvservice::RowDeleteMutation& ReplicateMutationRequest::_internal_row_delete() const {
+  return mutation_type_case() == kRowDelete ? *_impl_.mutation_type_.row_delete_ : reinterpret_cast<::csvservice::RowDeleteMutation&>(::csvservice::_RowDeleteMutation_default_instance_);
+}
+inline const ::csvservice::RowDeleteMutation& ReplicateMutationRequest::row_delete() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:csvservice.ReplicateMutationRequest.row_delete)
+  return _internal_row_delete();
+}
+inline ::csvservice::RowDeleteMutation* ReplicateMutationRequest::unsafe_arena_release_row_delete() {
+  // @@protoc_insertion_point(field_unsafe_arena_release:csvservice.ReplicateMutationRequest.row_delete)
+  if (mutation_type_case() == kRowDelete) {
+    clear_has_mutation_type();
+    auto* temp = _impl_.mutation_type_.row_delete_;
+    _impl_.mutation_type_.row_delete_ = nullptr;
+    return temp;
+  } else {
+    return nullptr;
+  }
+}
+inline void ReplicateMutationRequest::unsafe_arena_set_allocated_row_delete(::csvservice::RowDeleteMutation* value) {
+  // We rely on the oneof clear method to free the earlier contents
+  // of this oneof. We can directly use the pointer we're given to
+  // set the new value.
+  clear_mutation_type();
+  if (value) {
+    set_has_row_delete();
+    _impl_.mutation_type_.row_delete_ = value;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:csvservice.ReplicateMutationRequest.row_delete)
+}
+inline ::csvservice::RowDeleteMutation* ReplicateMutationRequest::_internal_mutable_row_delete() {
+  if (mutation_type_case() != kRowDelete) {
+    clear_mutation_type();
+    set_has_row_delete();
+    _impl_.mutation_type_.row_delete_ =
+        ::google::protobuf::Message::DefaultConstruct<::csvservice::RowDeleteMutation>(GetArena());
+  }
+  return _impl_.mutation_type_.row_delete_;
+}
+inline ::csvservice::RowDeleteMutation* ReplicateMutationRequest::mutable_row_delete() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::csvservice::RowDeleteMutation* _msg = _internal_mutable_row_delete();
+  // @@protoc_insertion_point(field_mutable:csvservice.ReplicateMutationRequest.row_delete)
+  return _msg;
+}
+
+inline bool ReplicateMutationRequest::has_mutation_type() const {
+  return mutation_type_case() != MUTATION_TYPE_NOT_SET;
+}
+inline void ReplicateMutationRequest::clear_has_mutation_type() {
+  _impl_._oneof_case_[0] = MUTATION_TYPE_NOT_SET;
+}
+inline ReplicateMutationRequest::MutationTypeCase ReplicateMutationRequest::mutation_type_case() const {
+  return ReplicateMutationRequest::MutationTypeCase(_impl_._oneof_case_[0]);
+}
+// -------------------------------------------------------------------
+
+// RowInsertMutation
+
+// repeated string values = 1;
+inline int RowInsertMutation::_internal_values_size() const {
+  return _internal_values().size();
+}
+inline int RowInsertMutation::values_size() const {
+  return _internal_values_size();
+}
+inline void RowInsertMutation::clear_values() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.values_.Clear();
+}
+inline std::string* RowInsertMutation::add_values() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  std::string* _s = _internal_mutable_values()->Add();
+  // @@protoc_insertion_point(field_add_mutable:csvservice.RowInsertMutation.values)
+  return _s;
+}
+inline const std::string& RowInsertMutation::values(int index) const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:csvservice.RowInsertMutation.values)
+  return _internal_values().Get(index);
+}
+inline std::string* RowInsertMutation::mutable_values(int index)
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable:csvservice.RowInsertMutation.values)
+  return _internal_mutable_values()->Mutable(index);
+}
+template <typename Arg_, typename... Args_>
+inline void RowInsertMutation::set_values(int index, Arg_&& value, Args_... args) {
+  ::google::protobuf::internal::AssignToString(
+      *_internal_mutable_values()->Mutable(index),
+      std::forward<Arg_>(value), args... );
+  // @@protoc_insertion_point(field_set:csvservice.RowInsertMutation.values)
+}
+template <typename Arg_, typename... Args_>
+inline void RowInsertMutation::add_values(Arg_&& value, Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::google::protobuf::internal::AddToRepeatedPtrField(*_internal_mutable_values(),
+                               std::forward<Arg_>(value),
+                               args... );
+  // @@protoc_insertion_point(field_add:csvservice.RowInsertMutation.values)
+}
+inline const ::google::protobuf::RepeatedPtrField<std::string>&
+RowInsertMutation::values() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_list:csvservice.RowInsertMutation.values)
+  return _internal_values();
+}
+inline ::google::protobuf::RepeatedPtrField<std::string>*
+RowInsertMutation::mutable_values() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_mutable_list:csvservice.RowInsertMutation.values)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _internal_mutable_values();
+}
+inline const ::google::protobuf::RepeatedPtrField<std::string>&
+RowInsertMutation::_internal_values() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.values_;
+}
+inline ::google::protobuf::RepeatedPtrField<std::string>*
+RowInsertMutation::_internal_mutable_values() {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return &_impl_.values_;
+}
+
+// -------------------------------------------------------------------
+
+// RowDeleteMutation
+
+// int32 row_index = 1;
+inline void RowDeleteMutation::clear_row_index() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.row_index_ = 0;
+}
+inline ::int32_t RowDeleteMutation::row_index() const {
+  // @@protoc_insertion_point(field_get:csvservice.RowDeleteMutation.row_index)
+  return _internal_row_index();
+}
+inline void RowDeleteMutation::set_row_index(::int32_t value) {
+  _internal_set_row_index(value);
+  // @@protoc_insertion_point(field_set:csvservice.RowDeleteMutation.row_index)
+}
+inline ::int32_t RowDeleteMutation::_internal_row_index() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.row_index_;
+}
+inline void RowDeleteMutation::_internal_set_row_index(::int32_t value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.row_index_ = value;
+}
+
+// -------------------------------------------------------------------
+
+// ReplicateMutationResponse
+
+// bool success = 1;
+inline void ReplicateMutationResponse::clear_success() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.success_ = false;
+}
+inline bool ReplicateMutationResponse::success() const {
+  // @@protoc_insertion_point(field_get:csvservice.ReplicateMutationResponse.success)
+  return _internal_success();
+}
+inline void ReplicateMutationResponse::set_success(bool value) {
+  _internal_set_success(value);
+  // @@protoc_insertion_point(field_set:csvservice.ReplicateMutationResponse.success)
+}
+inline bool ReplicateMutationResponse::_internal_success() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.success_;
+}
+inline void ReplicateMutationResponse::_internal_set_success(bool value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.success_ = value;
+}
+
+// string message = 2;
+inline void ReplicateMutationResponse::clear_message() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.message_.ClearToEmpty();
+}
+inline const std::string& ReplicateMutationResponse::message() const
+    ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  // @@protoc_insertion_point(field_get:csvservice.ReplicateMutationResponse.message)
+  return _internal_message();
+}
+template <typename Arg_, typename... Args_>
+inline PROTOBUF_ALWAYS_INLINE void ReplicateMutationResponse::set_message(Arg_&& arg,
+                                                     Args_... args) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.message_.Set(static_cast<Arg_&&>(arg), args..., GetArena());
+  // @@protoc_insertion_point(field_set:csvservice.ReplicateMutationResponse.message)
+}
+inline std::string* ReplicateMutationResponse::mutable_message() ABSL_ATTRIBUTE_LIFETIME_BOUND {
+  std::string* _s = _internal_mutable_message();
+  // @@protoc_insertion_point(field_mutable:csvservice.ReplicateMutationResponse.message)
+  return _s;
+}
+inline const std::string& ReplicateMutationResponse::_internal_message() const {
+  ::google::protobuf::internal::TSanRead(&_impl_);
+  return _impl_.message_.Get();
+}
+inline void ReplicateMutationResponse::_internal_set_message(const std::string& value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.message_.Set(value, GetArena());
+}
+inline std::string* ReplicateMutationResponse::_internal_mutable_message() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  return _impl_.message_.Mutable( GetArena());
+}
+inline std::string* ReplicateMutationResponse::release_message() {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  // @@protoc_insertion_point(field_release:csvservice.ReplicateMutationResponse.message)
+  return _impl_.message_.Release();
+}
+inline void ReplicateMutationResponse::set_allocated_message(std::string* value) {
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  _impl_.message_.SetAllocated(value, GetArena());
+  if (::google::protobuf::internal::DebugHardenForceCopyDefaultString() && _impl_.message_.IsDefault()) {
+    _impl_.message_.Set("", GetArena());
+  }
+  // @@protoc_insertion_point(field_set_allocated:csvservice.ReplicateMutationResponse.message)
 }
 
 #ifdef __GNUC__

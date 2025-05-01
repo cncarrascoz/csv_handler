@@ -24,7 +24,7 @@ target_link_libraries(csv_handler_cc_proto PUBLIC
 # Include directories
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/proto
+    # ${CMAKE_CURRENT_SOURCE_DIR}/proto # Remove this - handled by target includes/linking
 )
 
 # Core library with state machine interface and table view
@@ -68,6 +68,8 @@ add_executable(server
     server/network/csv_service_impl.cpp
     server/menu.cpp
 )
+
+target_include_directories(server PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 target_link_libraries(server
     csv_handler_cc_proto

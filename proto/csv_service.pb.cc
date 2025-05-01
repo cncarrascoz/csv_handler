@@ -53,6 +53,56 @@ struct ViewFileRequestDefaultTypeInternal {
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
     PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ViewFileRequestDefaultTypeInternal _ViewFileRequest_default_instance_;
 
+inline constexpr RowInsertMutation::Impl_::Impl_(
+    ::_pbi::ConstantInitialized) noexcept
+      : values_{},
+        _cached_size_{0} {}
+
+template <typename>
+PROTOBUF_CONSTEXPR RowInsertMutation::RowInsertMutation(::_pbi::ConstantInitialized)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(_class_data_.base()),
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(),
+#endif  // PROTOBUF_CUSTOM_VTABLE
+      _impl_(::_pbi::ConstantInitialized()) {
+}
+struct RowInsertMutationDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR RowInsertMutationDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~RowInsertMutationDefaultTypeInternal() {}
+  union {
+    RowInsertMutation _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 RowInsertMutationDefaultTypeInternal _RowInsertMutation_default_instance_;
+
+inline constexpr RowDeleteMutation::Impl_::Impl_(
+    ::_pbi::ConstantInitialized) noexcept
+      : row_index_{0},
+        _cached_size_{0} {}
+
+template <typename>
+PROTOBUF_CONSTEXPR RowDeleteMutation::RowDeleteMutation(::_pbi::ConstantInitialized)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(_class_data_.base()),
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(),
+#endif  // PROTOBUF_CUSTOM_VTABLE
+      _impl_(::_pbi::ConstantInitialized()) {
+}
+struct RowDeleteMutationDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR RowDeleteMutationDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~RowDeleteMutationDefaultTypeInternal() {}
+  union {
+    RowDeleteMutation _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 RowDeleteMutationDefaultTypeInternal _RowDeleteMutation_default_instance_;
+
 inline constexpr Row::Impl_::Impl_(
     ::_pbi::ConstantInitialized) noexcept
       : values_{},
@@ -105,6 +155,34 @@ struct ReplicateUploadResponseDefaultTypeInternal {
 
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
     PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ReplicateUploadResponseDefaultTypeInternal _ReplicateUploadResponse_default_instance_;
+
+inline constexpr ReplicateMutationResponse::Impl_::Impl_(
+    ::_pbi::ConstantInitialized) noexcept
+      : message_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        success_{false},
+        _cached_size_{0} {}
+
+template <typename>
+PROTOBUF_CONSTEXPR ReplicateMutationResponse::ReplicateMutationResponse(::_pbi::ConstantInitialized)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(_class_data_.base()),
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(),
+#endif  // PROTOBUF_CUSTOM_VTABLE
+      _impl_(::_pbi::ConstantInitialized()) {
+}
+struct ReplicateMutationResponseDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR ReplicateMutationResponseDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~ReplicateMutationResponseDefaultTypeInternal() {}
+  union {
+    ReplicateMutationResponse _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ReplicateMutationResponseDefaultTypeInternal _ReplicateMutationResponse_default_instance_;
 
 inline constexpr RegisterPeerResponse::Impl_::Impl_(
     ::_pbi::ConstantInitialized) noexcept
@@ -528,6 +606,35 @@ struct ViewFileResponseDefaultTypeInternal {
 
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
     PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ViewFileResponseDefaultTypeInternal _ViewFileResponse_default_instance_;
+
+inline constexpr ReplicateMutationRequest::Impl_::Impl_(
+    ::_pbi::ConstantInitialized) noexcept
+      : filename_(
+            &::google::protobuf::internal::fixed_address_empty_string,
+            ::_pbi::ConstantInitialized()),
+        mutation_type_{},
+        _cached_size_{0},
+        _oneof_case_{} {}
+
+template <typename>
+PROTOBUF_CONSTEXPR ReplicateMutationRequest::ReplicateMutationRequest(::_pbi::ConstantInitialized)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(_class_data_.base()),
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(),
+#endif  // PROTOBUF_CUSTOM_VTABLE
+      _impl_(::_pbi::ConstantInitialized()) {
+}
+struct ReplicateMutationRequestDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR ReplicateMutationRequestDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~ReplicateMutationRequestDefaultTypeInternal() {}
+  union {
+    ReplicateMutationRequest _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ReplicateMutationRequestDefaultTypeInternal _ReplicateMutationRequest_default_instance_;
 }  // namespace csvservice
 static constexpr const ::_pb::EnumDescriptor**
     file_level_enum_descriptors_proto_2fcsv_5fservice_2eproto = nullptr;
@@ -719,6 +826,46 @@ const ::uint32_t
         ~0u,  // no sizeof(Split)
         PROTOBUF_FIELD_OFFSET(::csvservice::ReplicateUploadResponse, _impl_.success_),
         PROTOBUF_FIELD_OFFSET(::csvservice::ReplicateUploadResponse, _impl_.message_),
+        ~0u,  // no _has_bits_
+        PROTOBUF_FIELD_OFFSET(::csvservice::ReplicateMutationRequest, _internal_metadata_),
+        ~0u,  // no _extensions_
+        PROTOBUF_FIELD_OFFSET(::csvservice::ReplicateMutationRequest, _impl_._oneof_case_[0]),
+        ~0u,  // no _weak_field_map_
+        ~0u,  // no _inlined_string_donated_
+        ~0u,  // no _split_
+        ~0u,  // no sizeof(Split)
+        PROTOBUF_FIELD_OFFSET(::csvservice::ReplicateMutationRequest, _impl_.filename_),
+        ::_pbi::kInvalidFieldOffsetTag,
+        ::_pbi::kInvalidFieldOffsetTag,
+        PROTOBUF_FIELD_OFFSET(::csvservice::ReplicateMutationRequest, _impl_.mutation_type_),
+        ~0u,  // no _has_bits_
+        PROTOBUF_FIELD_OFFSET(::csvservice::RowInsertMutation, _internal_metadata_),
+        ~0u,  // no _extensions_
+        ~0u,  // no _oneof_case_
+        ~0u,  // no _weak_field_map_
+        ~0u,  // no _inlined_string_donated_
+        ~0u,  // no _split_
+        ~0u,  // no sizeof(Split)
+        PROTOBUF_FIELD_OFFSET(::csvservice::RowInsertMutation, _impl_.values_),
+        ~0u,  // no _has_bits_
+        PROTOBUF_FIELD_OFFSET(::csvservice::RowDeleteMutation, _internal_metadata_),
+        ~0u,  // no _extensions_
+        ~0u,  // no _oneof_case_
+        ~0u,  // no _weak_field_map_
+        ~0u,  // no _inlined_string_donated_
+        ~0u,  // no _split_
+        ~0u,  // no sizeof(Split)
+        PROTOBUF_FIELD_OFFSET(::csvservice::RowDeleteMutation, _impl_.row_index_),
+        ~0u,  // no _has_bits_
+        PROTOBUF_FIELD_OFFSET(::csvservice::ReplicateMutationResponse, _internal_metadata_),
+        ~0u,  // no _extensions_
+        ~0u,  // no _oneof_case_
+        ~0u,  // no _weak_field_map_
+        ~0u,  // no _inlined_string_donated_
+        ~0u,  // no _split_
+        ~0u,  // no sizeof(Split)
+        PROTOBUF_FIELD_OFFSET(::csvservice::ReplicateMutationResponse, _impl_.success_),
+        PROTOBUF_FIELD_OFFSET(::csvservice::ReplicateMutationResponse, _impl_.message_),
 };
 
 static const ::_pbi::MigrationSchema
@@ -741,6 +888,10 @@ static const ::_pbi::MigrationSchema
         {153, -1, -1, sizeof(::csvservice::HeartbeatRequest)},
         {163, -1, -1, sizeof(::csvservice::HeartbeatResponse)},
         {173, -1, -1, sizeof(::csvservice::ReplicateUploadResponse)},
+        {183, -1, -1, sizeof(::csvservice::ReplicateMutationRequest)},
+        {195, -1, -1, sizeof(::csvservice::RowInsertMutation)},
+        {204, -1, -1, sizeof(::csvservice::RowDeleteMutation)},
+        {213, -1, -1, sizeof(::csvservice::ReplicateMutationResponse)},
 };
 static const ::_pb::Message* const file_default_instances[] = {
     &::csvservice::_CsvUploadRequest_default_instance_._instance,
@@ -761,6 +912,10 @@ static const ::_pb::Message* const file_default_instances[] = {
     &::csvservice::_HeartbeatRequest_default_instance_._instance,
     &::csvservice::_HeartbeatResponse_default_instance_._instance,
     &::csvservice::_ReplicateUploadResponse_default_instance_._instance,
+    &::csvservice::_ReplicateMutationRequest_default_instance_._instance,
+    &::csvservice::_RowInsertMutation_default_instance_._instance,
+    &::csvservice::_RowDeleteMutation_default_instance_._instance,
+    &::csvservice::_ReplicateMutationResponse_default_instance_._instance,
 };
 const char descriptor_table_protodef_proto_2fcsv_5fservice_2eproto[] ABSL_ATTRIBUTE_SECTION_VARIABLE(
     protodesc_cold) = {
@@ -792,41 +947,51 @@ const char descriptor_table_protodef_proto_2fcsv_5fservice_2eproto[] ABSL_ATTRIB
     "dress\030\001 \001(\t\022\021\n\tis_leader\030\002 \001(\010\"<\n\021Heartb"
     "eatResponse\022\017\n\007success\030\001 \001(\010\022\026\n\016leader_a"
     "ddress\030\002 \001(\t\";\n\027ReplicateUploadResponse\022"
-    "\017\n\007success\030\001 \001(\010\022\017\n\007message\030\002 \001(\t2\325\006\n\nCs"
-    "vService\022H\n\tUploadCsv\022\034.csvservice.CsvUp"
-    "loadRequest\032\035.csvservice.CsvUploadRespon"
-    "se\022=\n\017ListLoadedFiles\022\021.csvservice.Empty"
-    "\032\027.csvservice.CsvFileList\022E\n\010ViewFile\022\033."
-    "csvservice.ViewFileRequest\032\034.csvservice."
-    "ViewFileResponse\022M\n\nComputeSum\022\".csvserv"
-    "ice.ColumnOperationRequest\032\033.csvservice."
-    "NumericResponse\022Q\n\016ComputeAverage\022\".csvs"
-    "ervice.ColumnOperationRequest\032\033.csvservi"
-    "ce.NumericResponse\022K\n\tInsertRow\022\034.csvser"
-    "vice.InsertRowRequest\032 .csvservice.Modif"
-    "icationResponse\022K\n\tDeleteRow\022\034.csvservic"
-    "e.DeleteRowRequest\032 .csvservice.Modifica"
-    "tionResponse\022H\n\020GetClusterStatus\022\021.csvse"
-    "rvice.Empty\032!.csvservice.ClusterStatusRe"
-    "sponse\022Q\n\014RegisterPeer\022\037.csvservice.Regi"
-    "sterPeerRequest\032 .csvservice.RegisterPee"
-    "rResponse\022H\n\tHeartbeat\022\034.csvservice.Hear"
-    "tbeatRequest\032\035.csvservice.HeartbeatRespo"
-    "nse\022T\n\017ReplicateUpload\022\034.csvservice.CsvU"
-    "ploadRequest\032#.csvservice.ReplicateUploa"
-    "dResponseb\006proto3"
+    "\017\n\007success\030\001 \001(\010\022\017\n\007message\030\002 \001(\t\"\247\001\n\030Re"
+    "plicateMutationRequest\022\020\n\010filename\030\001 \001(\t"
+    "\0223\n\nrow_insert\030\002 \001(\0132\035.csvservice.RowIns"
+    "ertMutationH\000\0223\n\nrow_delete\030\003 \001(\0132\035.csvs"
+    "ervice.RowDeleteMutationH\000B\017\n\rmutation_t"
+    "ype\"#\n\021RowInsertMutation\022\016\n\006values\030\001 \003(\t"
+    "\"&\n\021RowDeleteMutation\022\021\n\trow_index\030\001 \001(\005"
+    "\"=\n\031ReplicateMutationResponse\022\017\n\007success"
+    "\030\001 \001(\010\022\017\n\007message\030\002 \001(\t2\263\007\n\nCsvService\022H"
+    "\n\tUploadCsv\022\034.csvservice.CsvUploadReques"
+    "t\032\035.csvservice.CsvUploadResponse\022=\n\017List"
+    "LoadedFiles\022\021.csvservice.Empty\032\027.csvserv"
+    "ice.CsvFileList\022E\n\010ViewFile\022\033.csvservice"
+    ".ViewFileRequest\032\034.csvservice.ViewFileRe"
+    "sponse\022M\n\nComputeSum\022\".csvservice.Column"
+    "OperationRequest\032\033.csvservice.NumericRes"
+    "ponse\022Q\n\016ComputeAverage\022\".csvservice.Col"
+    "umnOperationRequest\032\033.csvservice.Numeric"
+    "Response\022K\n\tInsertRow\022\034.csvservice.Inser"
+    "tRowRequest\032 .csvservice.ModificationRes"
+    "ponse\022K\n\tDeleteRow\022\034.csvservice.DeleteRo"
+    "wRequest\032 .csvservice.ModificationRespon"
+    "se\022H\n\020GetClusterStatus\022\021.csvservice.Empt"
+    "y\032!.csvservice.ClusterStatusResponse\022Q\n\014"
+    "RegisterPeer\022\037.csvservice.RegisterPeerRe"
+    "quest\032 .csvservice.RegisterPeerResponse\022"
+    "H\n\tHeartbeat\022\034.csvservice.HeartbeatReque"
+    "st\032\035.csvservice.HeartbeatResponse\022T\n\017Rep"
+    "licateUpload\022\034.csvservice.CsvUploadReque"
+    "st\032#.csvservice.ReplicateUploadResponse\022"
+    "\\\n\rApplyMutation\022$.csvservice.ReplicateM"
+    "utationRequest\032%.csvservice.ReplicateMut"
+    "ationResponseb\006proto3"
 };
 static ::absl::once_flag descriptor_table_proto_2fcsv_5fservice_2eproto_once;
 PROTOBUF_CONSTINIT const ::_pbi::DescriptorTable descriptor_table_proto_2fcsv_5fservice_2eproto = {
     false,
     false,
-    2017,
+    2421,
     descriptor_table_protodef_proto_2fcsv_5fservice_2eproto,
     "proto/csv_service.proto",
     &descriptor_table_proto_2fcsv_5fservice_2eproto_once,
     nullptr,
     0,
-    18,
+    22,
     schemas,
     file_default_instances,
     TableStruct_proto_2fcsv_5fservice_2eproto::offsets,
@@ -5554,6 +5719,1093 @@ void ReplicateUploadResponse::InternalSwap(ReplicateUploadResponse* PROTOBUF_RES
 }
 
 ::google::protobuf::Metadata ReplicateUploadResponse::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
+class ReplicateMutationRequest::_Internal {
+ public:
+  static constexpr ::int32_t kOneofCaseOffset =
+      PROTOBUF_FIELD_OFFSET(::csvservice::ReplicateMutationRequest, _impl_._oneof_case_);
+};
+
+void ReplicateMutationRequest::set_allocated_row_insert(::csvservice::RowInsertMutation* row_insert) {
+  ::google::protobuf::Arena* message_arena = GetArena();
+  clear_mutation_type();
+  if (row_insert) {
+    ::google::protobuf::Arena* submessage_arena = row_insert->GetArena();
+    if (message_arena != submessage_arena) {
+      row_insert = ::google::protobuf::internal::GetOwnedMessage(message_arena, row_insert, submessage_arena);
+    }
+    set_has_row_insert();
+    _impl_.mutation_type_.row_insert_ = row_insert;
+  }
+  // @@protoc_insertion_point(field_set_allocated:csvservice.ReplicateMutationRequest.row_insert)
+}
+void ReplicateMutationRequest::set_allocated_row_delete(::csvservice::RowDeleteMutation* row_delete) {
+  ::google::protobuf::Arena* message_arena = GetArena();
+  clear_mutation_type();
+  if (row_delete) {
+    ::google::protobuf::Arena* submessage_arena = row_delete->GetArena();
+    if (message_arena != submessage_arena) {
+      row_delete = ::google::protobuf::internal::GetOwnedMessage(message_arena, row_delete, submessage_arena);
+    }
+    set_has_row_delete();
+    _impl_.mutation_type_.row_delete_ = row_delete;
+  }
+  // @@protoc_insertion_point(field_set_allocated:csvservice.ReplicateMutationRequest.row_delete)
+}
+ReplicateMutationRequest::ReplicateMutationRequest(::google::protobuf::Arena* arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, _class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:csvservice.ReplicateMutationRequest)
+}
+inline PROTOBUF_NDEBUG_INLINE ReplicateMutationRequest::Impl_::Impl_(
+    ::google::protobuf::internal::InternalVisibility visibility, ::google::protobuf::Arena* arena,
+    const Impl_& from, const ::csvservice::ReplicateMutationRequest& from_msg)
+      : filename_(arena, from.filename_),
+        mutation_type_{},
+        _cached_size_{0},
+        _oneof_case_{from._oneof_case_[0]} {}
+
+ReplicateMutationRequest::ReplicateMutationRequest(
+    ::google::protobuf::Arena* arena,
+    const ReplicateMutationRequest& from)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, _class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  ReplicateMutationRequest* const _this = this;
+  (void)_this;
+  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+  new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+  switch (mutation_type_case()) {
+    case MUTATION_TYPE_NOT_SET:
+      break;
+      case kRowInsert:
+        _impl_.mutation_type_.row_insert_ = ::google::protobuf::Message::CopyConstruct<::csvservice::RowInsertMutation>(arena, *from._impl_.mutation_type_.row_insert_);
+        break;
+      case kRowDelete:
+        _impl_.mutation_type_.row_delete_ = ::google::protobuf::Message::CopyConstruct<::csvservice::RowDeleteMutation>(arena, *from._impl_.mutation_type_.row_delete_);
+        break;
+  }
+
+  // @@protoc_insertion_point(copy_constructor:csvservice.ReplicateMutationRequest)
+}
+inline PROTOBUF_NDEBUG_INLINE ReplicateMutationRequest::Impl_::Impl_(
+    ::google::protobuf::internal::InternalVisibility visibility,
+    ::google::protobuf::Arena* arena)
+      : filename_(arena),
+        mutation_type_{},
+        _cached_size_{0},
+        _oneof_case_{} {}
+
+inline void ReplicateMutationRequest::SharedCtor(::_pb::Arena* arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+}
+ReplicateMutationRequest::~ReplicateMutationRequest() {
+  // @@protoc_insertion_point(destructor:csvservice.ReplicateMutationRequest)
+  SharedDtor(*this);
+}
+inline void ReplicateMutationRequest::SharedDtor(MessageLite& self) {
+  ReplicateMutationRequest& this_ = static_cast<ReplicateMutationRequest&>(self);
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  this_._impl_.filename_.Destroy();
+  if (this_.has_mutation_type()) {
+    this_.clear_mutation_type();
+  }
+  this_._impl_.~Impl_();
+}
+
+void ReplicateMutationRequest::clear_mutation_type() {
+// @@protoc_insertion_point(one_of_clear_start:csvservice.ReplicateMutationRequest)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  switch (mutation_type_case()) {
+    case kRowInsert: {
+      if (GetArena() == nullptr) {
+        delete _impl_.mutation_type_.row_insert_;
+      } else if (::google::protobuf::internal::DebugHardenClearOneofMessageOnArena()) {
+        ::google::protobuf::internal::MaybePoisonAfterClear(_impl_.mutation_type_.row_insert_);
+      }
+      break;
+    }
+    case kRowDelete: {
+      if (GetArena() == nullptr) {
+        delete _impl_.mutation_type_.row_delete_;
+      } else if (::google::protobuf::internal::DebugHardenClearOneofMessageOnArena()) {
+        ::google::protobuf::internal::MaybePoisonAfterClear(_impl_.mutation_type_.row_delete_);
+      }
+      break;
+    }
+    case MUTATION_TYPE_NOT_SET: {
+      break;
+    }
+  }
+  _impl_._oneof_case_[0] = MUTATION_TYPE_NOT_SET;
+}
+
+
+inline void* ReplicateMutationRequest::PlacementNew_(const void*, void* mem,
+                                        ::google::protobuf::Arena* arena) {
+  return ::new (mem) ReplicateMutationRequest(arena);
+}
+constexpr auto ReplicateMutationRequest::InternalNewImpl_() {
+  return ::google::protobuf::internal::MessageCreator::CopyInit(sizeof(ReplicateMutationRequest),
+                                            alignof(ReplicateMutationRequest));
+}
+PROTOBUF_CONSTINIT
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
+const ::google::protobuf::internal::ClassDataFull ReplicateMutationRequest::_class_data_ = {
+    ::google::protobuf::internal::ClassData{
+        &_ReplicateMutationRequest_default_instance_._instance,
+        &_table_.header,
+        nullptr,  // OnDemandRegisterArenaDtor
+        nullptr,  // IsInitialized
+        &ReplicateMutationRequest::MergeImpl,
+        ::google::protobuf::Message::GetNewImpl<ReplicateMutationRequest>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+        &ReplicateMutationRequest::SharedDtor,
+        ::google::protobuf::Message::GetClearImpl<ReplicateMutationRequest>(), &ReplicateMutationRequest::ByteSizeLong,
+            &ReplicateMutationRequest::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+        PROTOBUF_FIELD_OFFSET(ReplicateMutationRequest, _impl_._cached_size_),
+        false,
+    },
+    &ReplicateMutationRequest::kDescriptorMethods,
+    &descriptor_table_proto_2fcsv_5fservice_2eproto,
+    nullptr,  // tracker
+};
+const ::google::protobuf::internal::ClassData* ReplicateMutationRequest::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(_class_data_.tc_table);
+  return _class_data_.base();
+}
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
+const ::_pbi::TcParseTable<0, 3, 2, 52, 2> ReplicateMutationRequest::_table_ = {
+  {
+    0,  // no _has_bits_
+    0, // no _extensions_
+    3, 0,  // max_field_number, fast_idx_mask
+    offsetof(decltype(_table_), field_lookup_table),
+    4294967288,  // skipmap
+    offsetof(decltype(_table_), field_entries),
+    3,  // num_field_entries
+    2,  // num_aux_entries
+    offsetof(decltype(_table_), aux_entries),
+    _class_data_.base(),
+    nullptr,  // post_loop_handler
+    ::_pbi::TcParser::GenericFallback,  // fallback
+    #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+    ::_pbi::TcParser::GetTable<::csvservice::ReplicateMutationRequest>(),  // to_prefetch
+    #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+  }, {{
+    // string filename = 1;
+    {::_pbi::TcParser::FastUS1,
+     {10, 63, 0, PROTOBUF_FIELD_OFFSET(ReplicateMutationRequest, _impl_.filename_)}},
+  }}, {{
+    65535, 65535
+  }}, {{
+    // string filename = 1;
+    {PROTOBUF_FIELD_OFFSET(ReplicateMutationRequest, _impl_.filename_), 0, 0,
+    (0 | ::_fl::kFcSingular | ::_fl::kUtf8String | ::_fl::kRepAString)},
+    // .csvservice.RowInsertMutation row_insert = 2;
+    {PROTOBUF_FIELD_OFFSET(ReplicateMutationRequest, _impl_.mutation_type_.row_insert_), _Internal::kOneofCaseOffset + 0, 0,
+    (0 | ::_fl::kFcOneof | ::_fl::kMessage | ::_fl::kTvTable)},
+    // .csvservice.RowDeleteMutation row_delete = 3;
+    {PROTOBUF_FIELD_OFFSET(ReplicateMutationRequest, _impl_.mutation_type_.row_delete_), _Internal::kOneofCaseOffset + 0, 1,
+    (0 | ::_fl::kFcOneof | ::_fl::kMessage | ::_fl::kTvTable)},
+  }}, {{
+    {::_pbi::TcParser::GetTable<::csvservice::RowInsertMutation>()},
+    {::_pbi::TcParser::GetTable<::csvservice::RowDeleteMutation>()},
+  }}, {{
+    "\43\10\0\0\0\0\0\0"
+    "csvservice.ReplicateMutationRequest"
+    "filename"
+  }},
+};
+
+PROTOBUF_NOINLINE void ReplicateMutationRequest::Clear() {
+// @@protoc_insertion_point(message_clear_start:csvservice.ReplicateMutationRequest)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.filename_.ClearToEmpty();
+  clear_mutation_type();
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+        ::uint8_t* ReplicateMutationRequest::_InternalSerialize(
+            const MessageLite& base, ::uint8_t* target,
+            ::google::protobuf::io::EpsCopyOutputStream* stream) {
+          const ReplicateMutationRequest& this_ = static_cast<const ReplicateMutationRequest&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+        ::uint8_t* ReplicateMutationRequest::_InternalSerialize(
+            ::uint8_t* target,
+            ::google::protobuf::io::EpsCopyOutputStream* stream) const {
+          const ReplicateMutationRequest& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          // @@protoc_insertion_point(serialize_to_array_start:csvservice.ReplicateMutationRequest)
+          ::uint32_t cached_has_bits = 0;
+          (void)cached_has_bits;
+
+          // string filename = 1;
+          if (!this_._internal_filename().empty()) {
+            const std::string& _s = this_._internal_filename();
+            ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+                _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "csvservice.ReplicateMutationRequest.filename");
+            target = stream->WriteStringMaybeAliased(1, _s, target);
+          }
+
+          switch (this_.mutation_type_case()) {
+            case kRowInsert: {
+              target = ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
+                  2, *this_._impl_.mutation_type_.row_insert_, this_._impl_.mutation_type_.row_insert_->GetCachedSize(), target,
+                  stream);
+              break;
+            }
+            case kRowDelete: {
+              target = ::google::protobuf::internal::WireFormatLite::InternalWriteMessage(
+                  3, *this_._impl_.mutation_type_.row_delete_, this_._impl_.mutation_type_.row_delete_->GetCachedSize(), target,
+                  stream);
+              break;
+            }
+            default:
+              break;
+          }
+          if (PROTOBUF_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+            target =
+                ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+                    this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+          }
+          // @@protoc_insertion_point(serialize_to_array_end:csvservice.ReplicateMutationRequest)
+          return target;
+        }
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+        ::size_t ReplicateMutationRequest::ByteSizeLong(const MessageLite& base) {
+          const ReplicateMutationRequest& this_ = static_cast<const ReplicateMutationRequest&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+        ::size_t ReplicateMutationRequest::ByteSizeLong() const {
+          const ReplicateMutationRequest& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          // @@protoc_insertion_point(message_byte_size_start:csvservice.ReplicateMutationRequest)
+          ::size_t total_size = 0;
+
+          ::uint32_t cached_has_bits = 0;
+          // Prevent compiler warnings about cached_has_bits being unused
+          (void)cached_has_bits;
+
+           {
+            // string filename = 1;
+            if (!this_._internal_filename().empty()) {
+              total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                              this_._internal_filename());
+            }
+          }
+          switch (this_.mutation_type_case()) {
+            // .csvservice.RowInsertMutation row_insert = 2;
+            case kRowInsert: {
+              total_size += 1 +
+                            ::google::protobuf::internal::WireFormatLite::MessageSize(*this_._impl_.mutation_type_.row_insert_);
+              break;
+            }
+            // .csvservice.RowDeleteMutation row_delete = 3;
+            case kRowDelete: {
+              total_size += 1 +
+                            ::google::protobuf::internal::WireFormatLite::MessageSize(*this_._impl_.mutation_type_.row_delete_);
+              break;
+            }
+            case MUTATION_TYPE_NOT_SET: {
+              break;
+            }
+          }
+          return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                                     &this_._impl_._cached_size_);
+        }
+
+void ReplicateMutationRequest::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::google::protobuf::MessageLite& from_msg) {
+  auto* const _this = static_cast<ReplicateMutationRequest*>(&to_msg);
+  auto& from = static_cast<const ReplicateMutationRequest&>(from_msg);
+  ::google::protobuf::Arena* arena = _this->GetArena();
+  // @@protoc_insertion_point(class_specific_merge_from_start:csvservice.ReplicateMutationRequest)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_filename().empty()) {
+    _this->_internal_set_filename(from._internal_filename());
+  }
+  if (const uint32_t oneof_from_case = from._impl_._oneof_case_[0]) {
+    const uint32_t oneof_to_case = _this->_impl_._oneof_case_[0];
+    const bool oneof_needs_init = oneof_to_case != oneof_from_case;
+    if (oneof_needs_init) {
+      if (oneof_to_case != 0) {
+        _this->clear_mutation_type();
+      }
+      _this->_impl_._oneof_case_[0] = oneof_from_case;
+    }
+
+    switch (oneof_from_case) {
+      case kRowInsert: {
+        if (oneof_needs_init) {
+          _this->_impl_.mutation_type_.row_insert_ =
+              ::google::protobuf::Message::CopyConstruct<::csvservice::RowInsertMutation>(arena, *from._impl_.mutation_type_.row_insert_);
+        } else {
+          _this->_impl_.mutation_type_.row_insert_->MergeFrom(from._internal_row_insert());
+        }
+        break;
+      }
+      case kRowDelete: {
+        if (oneof_needs_init) {
+          _this->_impl_.mutation_type_.row_delete_ =
+              ::google::protobuf::Message::CopyConstruct<::csvservice::RowDeleteMutation>(arena, *from._impl_.mutation_type_.row_delete_);
+        } else {
+          _this->_impl_.mutation_type_.row_delete_->MergeFrom(from._internal_row_delete());
+        }
+        break;
+      }
+      case MUTATION_TYPE_NOT_SET:
+        break;
+    }
+  }
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void ReplicateMutationRequest::CopyFrom(const ReplicateMutationRequest& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:csvservice.ReplicateMutationRequest)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void ReplicateMutationRequest::InternalSwap(ReplicateMutationRequest* PROTOBUF_RESTRICT other) {
+  using std::swap;
+  auto* arena = GetArena();
+  ABSL_DCHECK_EQ(arena, other->GetArena());
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.filename_, &other->_impl_.filename_, arena);
+  swap(_impl_.mutation_type_, other->_impl_.mutation_type_);
+  swap(_impl_._oneof_case_[0], other->_impl_._oneof_case_[0]);
+}
+
+::google::protobuf::Metadata ReplicateMutationRequest::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
+class RowInsertMutation::_Internal {
+ public:
+};
+
+RowInsertMutation::RowInsertMutation(::google::protobuf::Arena* arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, _class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:csvservice.RowInsertMutation)
+}
+inline PROTOBUF_NDEBUG_INLINE RowInsertMutation::Impl_::Impl_(
+    ::google::protobuf::internal::InternalVisibility visibility, ::google::protobuf::Arena* arena,
+    const Impl_& from, const ::csvservice::RowInsertMutation& from_msg)
+      : values_{visibility, arena, from.values_},
+        _cached_size_{0} {}
+
+RowInsertMutation::RowInsertMutation(
+    ::google::protobuf::Arena* arena,
+    const RowInsertMutation& from)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, _class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  RowInsertMutation* const _this = this;
+  (void)_this;
+  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+  new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+
+  // @@protoc_insertion_point(copy_constructor:csvservice.RowInsertMutation)
+}
+inline PROTOBUF_NDEBUG_INLINE RowInsertMutation::Impl_::Impl_(
+    ::google::protobuf::internal::InternalVisibility visibility,
+    ::google::protobuf::Arena* arena)
+      : values_{visibility, arena},
+        _cached_size_{0} {}
+
+inline void RowInsertMutation::SharedCtor(::_pb::Arena* arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+}
+RowInsertMutation::~RowInsertMutation() {
+  // @@protoc_insertion_point(destructor:csvservice.RowInsertMutation)
+  SharedDtor(*this);
+}
+inline void RowInsertMutation::SharedDtor(MessageLite& self) {
+  RowInsertMutation& this_ = static_cast<RowInsertMutation&>(self);
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  this_._impl_.~Impl_();
+}
+
+inline void* RowInsertMutation::PlacementNew_(const void*, void* mem,
+                                        ::google::protobuf::Arena* arena) {
+  return ::new (mem) RowInsertMutation(arena);
+}
+constexpr auto RowInsertMutation::InternalNewImpl_() {
+  constexpr auto arena_bits = ::google::protobuf::internal::EncodePlacementArenaOffsets({
+      PROTOBUF_FIELD_OFFSET(RowInsertMutation, _impl_.values_) +
+          decltype(RowInsertMutation::_impl_.values_)::
+              InternalGetArenaOffset(
+                  ::google::protobuf::Message::internal_visibility()),
+  });
+  if (arena_bits.has_value()) {
+    return ::google::protobuf::internal::MessageCreator::ZeroInit(
+        sizeof(RowInsertMutation), alignof(RowInsertMutation), *arena_bits);
+  } else {
+    return ::google::protobuf::internal::MessageCreator(&RowInsertMutation::PlacementNew_,
+                                 sizeof(RowInsertMutation),
+                                 alignof(RowInsertMutation));
+  }
+}
+PROTOBUF_CONSTINIT
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
+const ::google::protobuf::internal::ClassDataFull RowInsertMutation::_class_data_ = {
+    ::google::protobuf::internal::ClassData{
+        &_RowInsertMutation_default_instance_._instance,
+        &_table_.header,
+        nullptr,  // OnDemandRegisterArenaDtor
+        nullptr,  // IsInitialized
+        &RowInsertMutation::MergeImpl,
+        ::google::protobuf::Message::GetNewImpl<RowInsertMutation>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+        &RowInsertMutation::SharedDtor,
+        ::google::protobuf::Message::GetClearImpl<RowInsertMutation>(), &RowInsertMutation::ByteSizeLong,
+            &RowInsertMutation::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+        PROTOBUF_FIELD_OFFSET(RowInsertMutation, _impl_._cached_size_),
+        false,
+    },
+    &RowInsertMutation::kDescriptorMethods,
+    &descriptor_table_proto_2fcsv_5fservice_2eproto,
+    nullptr,  // tracker
+};
+const ::google::protobuf::internal::ClassData* RowInsertMutation::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(_class_data_.tc_table);
+  return _class_data_.base();
+}
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
+const ::_pbi::TcParseTable<0, 1, 0, 43, 2> RowInsertMutation::_table_ = {
+  {
+    0,  // no _has_bits_
+    0, // no _extensions_
+    1, 0,  // max_field_number, fast_idx_mask
+    offsetof(decltype(_table_), field_lookup_table),
+    4294967294,  // skipmap
+    offsetof(decltype(_table_), field_entries),
+    1,  // num_field_entries
+    0,  // num_aux_entries
+    offsetof(decltype(_table_), field_names),  // no aux_entries
+    _class_data_.base(),
+    nullptr,  // post_loop_handler
+    ::_pbi::TcParser::GenericFallback,  // fallback
+    #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+    ::_pbi::TcParser::GetTable<::csvservice::RowInsertMutation>(),  // to_prefetch
+    #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+  }, {{
+    // repeated string values = 1;
+    {::_pbi::TcParser::FastUR1,
+     {10, 63, 0, PROTOBUF_FIELD_OFFSET(RowInsertMutation, _impl_.values_)}},
+  }}, {{
+    65535, 65535
+  }}, {{
+    // repeated string values = 1;
+    {PROTOBUF_FIELD_OFFSET(RowInsertMutation, _impl_.values_), 0, 0,
+    (0 | ::_fl::kFcRepeated | ::_fl::kUtf8String | ::_fl::kRepSString)},
+  }},
+  // no aux_entries
+  {{
+    "\34\6\0\0\0\0\0\0"
+    "csvservice.RowInsertMutation"
+    "values"
+  }},
+};
+
+PROTOBUF_NOINLINE void RowInsertMutation::Clear() {
+// @@protoc_insertion_point(message_clear_start:csvservice.RowInsertMutation)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.values_.Clear();
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+        ::uint8_t* RowInsertMutation::_InternalSerialize(
+            const MessageLite& base, ::uint8_t* target,
+            ::google::protobuf::io::EpsCopyOutputStream* stream) {
+          const RowInsertMutation& this_ = static_cast<const RowInsertMutation&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+        ::uint8_t* RowInsertMutation::_InternalSerialize(
+            ::uint8_t* target,
+            ::google::protobuf::io::EpsCopyOutputStream* stream) const {
+          const RowInsertMutation& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          // @@protoc_insertion_point(serialize_to_array_start:csvservice.RowInsertMutation)
+          ::uint32_t cached_has_bits = 0;
+          (void)cached_has_bits;
+
+          // repeated string values = 1;
+          for (int i = 0, n = this_._internal_values_size(); i < n; ++i) {
+            const auto& s = this_._internal_values().Get(i);
+            ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+                s.data(), static_cast<int>(s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "csvservice.RowInsertMutation.values");
+            target = stream->WriteString(1, s, target);
+          }
+
+          if (PROTOBUF_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+            target =
+                ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+                    this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+          }
+          // @@protoc_insertion_point(serialize_to_array_end:csvservice.RowInsertMutation)
+          return target;
+        }
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+        ::size_t RowInsertMutation::ByteSizeLong(const MessageLite& base) {
+          const RowInsertMutation& this_ = static_cast<const RowInsertMutation&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+        ::size_t RowInsertMutation::ByteSizeLong() const {
+          const RowInsertMutation& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          // @@protoc_insertion_point(message_byte_size_start:csvservice.RowInsertMutation)
+          ::size_t total_size = 0;
+
+          ::uint32_t cached_has_bits = 0;
+          // Prevent compiler warnings about cached_has_bits being unused
+          (void)cached_has_bits;
+
+          ::_pbi::Prefetch5LinesFrom7Lines(&this_);
+           {
+            // repeated string values = 1;
+            {
+              total_size +=
+                  1 * ::google::protobuf::internal::FromIntSize(this_._internal_values().size());
+              for (int i = 0, n = this_._internal_values().size(); i < n; ++i) {
+                total_size += ::google::protobuf::internal::WireFormatLite::StringSize(
+                    this_._internal_values().Get(i));
+              }
+            }
+          }
+          return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                                     &this_._impl_._cached_size_);
+        }
+
+void RowInsertMutation::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::google::protobuf::MessageLite& from_msg) {
+  auto* const _this = static_cast<RowInsertMutation*>(&to_msg);
+  auto& from = static_cast<const RowInsertMutation&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:csvservice.RowInsertMutation)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  _this->_internal_mutable_values()->MergeFrom(from._internal_values());
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void RowInsertMutation::CopyFrom(const RowInsertMutation& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:csvservice.RowInsertMutation)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void RowInsertMutation::InternalSwap(RowInsertMutation* PROTOBUF_RESTRICT other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  _impl_.values_.InternalSwap(&other->_impl_.values_);
+}
+
+::google::protobuf::Metadata RowInsertMutation::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
+class RowDeleteMutation::_Internal {
+ public:
+};
+
+RowDeleteMutation::RowDeleteMutation(::google::protobuf::Arena* arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, _class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:csvservice.RowDeleteMutation)
+}
+RowDeleteMutation::RowDeleteMutation(
+    ::google::protobuf::Arena* arena, const RowDeleteMutation& from)
+    : RowDeleteMutation(arena) {
+  MergeFrom(from);
+}
+inline PROTOBUF_NDEBUG_INLINE RowDeleteMutation::Impl_::Impl_(
+    ::google::protobuf::internal::InternalVisibility visibility,
+    ::google::protobuf::Arena* arena)
+      : _cached_size_{0} {}
+
+inline void RowDeleteMutation::SharedCtor(::_pb::Arena* arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+  _impl_.row_index_ = {};
+}
+RowDeleteMutation::~RowDeleteMutation() {
+  // @@protoc_insertion_point(destructor:csvservice.RowDeleteMutation)
+  SharedDtor(*this);
+}
+inline void RowDeleteMutation::SharedDtor(MessageLite& self) {
+  RowDeleteMutation& this_ = static_cast<RowDeleteMutation&>(self);
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  this_._impl_.~Impl_();
+}
+
+inline void* RowDeleteMutation::PlacementNew_(const void*, void* mem,
+                                        ::google::protobuf::Arena* arena) {
+  return ::new (mem) RowDeleteMutation(arena);
+}
+constexpr auto RowDeleteMutation::InternalNewImpl_() {
+  return ::google::protobuf::internal::MessageCreator::ZeroInit(sizeof(RowDeleteMutation),
+                                            alignof(RowDeleteMutation));
+}
+PROTOBUF_CONSTINIT
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
+const ::google::protobuf::internal::ClassDataFull RowDeleteMutation::_class_data_ = {
+    ::google::protobuf::internal::ClassData{
+        &_RowDeleteMutation_default_instance_._instance,
+        &_table_.header,
+        nullptr,  // OnDemandRegisterArenaDtor
+        nullptr,  // IsInitialized
+        &RowDeleteMutation::MergeImpl,
+        ::google::protobuf::Message::GetNewImpl<RowDeleteMutation>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+        &RowDeleteMutation::SharedDtor,
+        ::google::protobuf::Message::GetClearImpl<RowDeleteMutation>(), &RowDeleteMutation::ByteSizeLong,
+            &RowDeleteMutation::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+        PROTOBUF_FIELD_OFFSET(RowDeleteMutation, _impl_._cached_size_),
+        false,
+    },
+    &RowDeleteMutation::kDescriptorMethods,
+    &descriptor_table_proto_2fcsv_5fservice_2eproto,
+    nullptr,  // tracker
+};
+const ::google::protobuf::internal::ClassData* RowDeleteMutation::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(_class_data_.tc_table);
+  return _class_data_.base();
+}
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
+const ::_pbi::TcParseTable<0, 1, 0, 0, 2> RowDeleteMutation::_table_ = {
+  {
+    0,  // no _has_bits_
+    0, // no _extensions_
+    1, 0,  // max_field_number, fast_idx_mask
+    offsetof(decltype(_table_), field_lookup_table),
+    4294967294,  // skipmap
+    offsetof(decltype(_table_), field_entries),
+    1,  // num_field_entries
+    0,  // num_aux_entries
+    offsetof(decltype(_table_), field_names),  // no aux_entries
+    _class_data_.base(),
+    nullptr,  // post_loop_handler
+    ::_pbi::TcParser::GenericFallback,  // fallback
+    #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+    ::_pbi::TcParser::GetTable<::csvservice::RowDeleteMutation>(),  // to_prefetch
+    #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+  }, {{
+    // int32 row_index = 1;
+    {::_pbi::TcParser::SingularVarintNoZag1<::uint32_t, offsetof(RowDeleteMutation, _impl_.row_index_), 63>(),
+     {8, 63, 0, PROTOBUF_FIELD_OFFSET(RowDeleteMutation, _impl_.row_index_)}},
+  }}, {{
+    65535, 65535
+  }}, {{
+    // int32 row_index = 1;
+    {PROTOBUF_FIELD_OFFSET(RowDeleteMutation, _impl_.row_index_), 0, 0,
+    (0 | ::_fl::kFcSingular | ::_fl::kInt32)},
+  }},
+  // no aux_entries
+  {{
+  }},
+};
+
+PROTOBUF_NOINLINE void RowDeleteMutation::Clear() {
+// @@protoc_insertion_point(message_clear_start:csvservice.RowDeleteMutation)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.row_index_ = 0;
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+        ::uint8_t* RowDeleteMutation::_InternalSerialize(
+            const MessageLite& base, ::uint8_t* target,
+            ::google::protobuf::io::EpsCopyOutputStream* stream) {
+          const RowDeleteMutation& this_ = static_cast<const RowDeleteMutation&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+        ::uint8_t* RowDeleteMutation::_InternalSerialize(
+            ::uint8_t* target,
+            ::google::protobuf::io::EpsCopyOutputStream* stream) const {
+          const RowDeleteMutation& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          // @@protoc_insertion_point(serialize_to_array_start:csvservice.RowDeleteMutation)
+          ::uint32_t cached_has_bits = 0;
+          (void)cached_has_bits;
+
+          // int32 row_index = 1;
+          if (this_._internal_row_index() != 0) {
+            target = ::google::protobuf::internal::WireFormatLite::
+                WriteInt32ToArrayWithField<1>(
+                    stream, this_._internal_row_index(), target);
+          }
+
+          if (PROTOBUF_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+            target =
+                ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+                    this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+          }
+          // @@protoc_insertion_point(serialize_to_array_end:csvservice.RowDeleteMutation)
+          return target;
+        }
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+        ::size_t RowDeleteMutation::ByteSizeLong(const MessageLite& base) {
+          const RowDeleteMutation& this_ = static_cast<const RowDeleteMutation&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+        ::size_t RowDeleteMutation::ByteSizeLong() const {
+          const RowDeleteMutation& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          // @@protoc_insertion_point(message_byte_size_start:csvservice.RowDeleteMutation)
+          ::size_t total_size = 0;
+
+          ::uint32_t cached_has_bits = 0;
+          // Prevent compiler warnings about cached_has_bits being unused
+          (void)cached_has_bits;
+
+           {
+            // int32 row_index = 1;
+            if (this_._internal_row_index() != 0) {
+              total_size += ::_pbi::WireFormatLite::Int32SizePlusOne(
+                  this_._internal_row_index());
+            }
+          }
+          return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                                     &this_._impl_._cached_size_);
+        }
+
+void RowDeleteMutation::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::google::protobuf::MessageLite& from_msg) {
+  auto* const _this = static_cast<RowDeleteMutation*>(&to_msg);
+  auto& from = static_cast<const RowDeleteMutation&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:csvservice.RowDeleteMutation)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (from._internal_row_index() != 0) {
+    _this->_impl_.row_index_ = from._impl_.row_index_;
+  }
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void RowDeleteMutation::CopyFrom(const RowDeleteMutation& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:csvservice.RowDeleteMutation)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void RowDeleteMutation::InternalSwap(RowDeleteMutation* PROTOBUF_RESTRICT other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+        swap(_impl_.row_index_, other->_impl_.row_index_);
+}
+
+::google::protobuf::Metadata RowDeleteMutation::GetMetadata() const {
+  return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
+}
+// ===================================================================
+
+class ReplicateMutationResponse::_Internal {
+ public:
+};
+
+ReplicateMutationResponse::ReplicateMutationResponse(::google::protobuf::Arena* arena)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, _class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:csvservice.ReplicateMutationResponse)
+}
+inline PROTOBUF_NDEBUG_INLINE ReplicateMutationResponse::Impl_::Impl_(
+    ::google::protobuf::internal::InternalVisibility visibility, ::google::protobuf::Arena* arena,
+    const Impl_& from, const ::csvservice::ReplicateMutationResponse& from_msg)
+      : message_(arena, from.message_),
+        _cached_size_{0} {}
+
+ReplicateMutationResponse::ReplicateMutationResponse(
+    ::google::protobuf::Arena* arena,
+    const ReplicateMutationResponse& from)
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+    : ::google::protobuf::Message(arena, _class_data_.base()) {
+#else   // PROTOBUF_CUSTOM_VTABLE
+    : ::google::protobuf::Message(arena) {
+#endif  // PROTOBUF_CUSTOM_VTABLE
+  ReplicateMutationResponse* const _this = this;
+  (void)_this;
+  _internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(
+      from._internal_metadata_);
+  new (&_impl_) Impl_(internal_visibility(), arena, from._impl_, from);
+  _impl_.success_ = from._impl_.success_;
+
+  // @@protoc_insertion_point(copy_constructor:csvservice.ReplicateMutationResponse)
+}
+inline PROTOBUF_NDEBUG_INLINE ReplicateMutationResponse::Impl_::Impl_(
+    ::google::protobuf::internal::InternalVisibility visibility,
+    ::google::protobuf::Arena* arena)
+      : message_(arena),
+        _cached_size_{0} {}
+
+inline void ReplicateMutationResponse::SharedCtor(::_pb::Arena* arena) {
+  new (&_impl_) Impl_(internal_visibility(), arena);
+  _impl_.success_ = {};
+}
+ReplicateMutationResponse::~ReplicateMutationResponse() {
+  // @@protoc_insertion_point(destructor:csvservice.ReplicateMutationResponse)
+  SharedDtor(*this);
+}
+inline void ReplicateMutationResponse::SharedDtor(MessageLite& self) {
+  ReplicateMutationResponse& this_ = static_cast<ReplicateMutationResponse&>(self);
+  this_._internal_metadata_.Delete<::google::protobuf::UnknownFieldSet>();
+  ABSL_DCHECK(this_.GetArena() == nullptr);
+  this_._impl_.message_.Destroy();
+  this_._impl_.~Impl_();
+}
+
+inline void* ReplicateMutationResponse::PlacementNew_(const void*, void* mem,
+                                        ::google::protobuf::Arena* arena) {
+  return ::new (mem) ReplicateMutationResponse(arena);
+}
+constexpr auto ReplicateMutationResponse::InternalNewImpl_() {
+  return ::google::protobuf::internal::MessageCreator::CopyInit(sizeof(ReplicateMutationResponse),
+                                            alignof(ReplicateMutationResponse));
+}
+PROTOBUF_CONSTINIT
+PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
+const ::google::protobuf::internal::ClassDataFull ReplicateMutationResponse::_class_data_ = {
+    ::google::protobuf::internal::ClassData{
+        &_ReplicateMutationResponse_default_instance_._instance,
+        &_table_.header,
+        nullptr,  // OnDemandRegisterArenaDtor
+        nullptr,  // IsInitialized
+        &ReplicateMutationResponse::MergeImpl,
+        ::google::protobuf::Message::GetNewImpl<ReplicateMutationResponse>(),
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+        &ReplicateMutationResponse::SharedDtor,
+        ::google::protobuf::Message::GetClearImpl<ReplicateMutationResponse>(), &ReplicateMutationResponse::ByteSizeLong,
+            &ReplicateMutationResponse::_InternalSerialize,
+#endif  // PROTOBUF_CUSTOM_VTABLE
+        PROTOBUF_FIELD_OFFSET(ReplicateMutationResponse, _impl_._cached_size_),
+        false,
+    },
+    &ReplicateMutationResponse::kDescriptorMethods,
+    &descriptor_table_proto_2fcsv_5fservice_2eproto,
+    nullptr,  // tracker
+};
+const ::google::protobuf::internal::ClassData* ReplicateMutationResponse::GetClassData() const {
+  ::google::protobuf::internal::PrefetchToLocalCache(&_class_data_);
+  ::google::protobuf::internal::PrefetchToLocalCache(_class_data_.tc_table);
+  return _class_data_.base();
+}
+PROTOBUF_CONSTINIT PROTOBUF_ATTRIBUTE_INIT_PRIORITY1
+const ::_pbi::TcParseTable<1, 2, 0, 52, 2> ReplicateMutationResponse::_table_ = {
+  {
+    0,  // no _has_bits_
+    0, // no _extensions_
+    2, 8,  // max_field_number, fast_idx_mask
+    offsetof(decltype(_table_), field_lookup_table),
+    4294967292,  // skipmap
+    offsetof(decltype(_table_), field_entries),
+    2,  // num_field_entries
+    0,  // num_aux_entries
+    offsetof(decltype(_table_), field_names),  // no aux_entries
+    _class_data_.base(),
+    nullptr,  // post_loop_handler
+    ::_pbi::TcParser::GenericFallback,  // fallback
+    #ifdef PROTOBUF_PREFETCH_PARSE_TABLE
+    ::_pbi::TcParser::GetTable<::csvservice::ReplicateMutationResponse>(),  // to_prefetch
+    #endif  // PROTOBUF_PREFETCH_PARSE_TABLE
+  }, {{
+    // string message = 2;
+    {::_pbi::TcParser::FastUS1,
+     {18, 63, 0, PROTOBUF_FIELD_OFFSET(ReplicateMutationResponse, _impl_.message_)}},
+    // bool success = 1;
+    {::_pbi::TcParser::SingularVarintNoZag1<bool, offsetof(ReplicateMutationResponse, _impl_.success_), 63>(),
+     {8, 63, 0, PROTOBUF_FIELD_OFFSET(ReplicateMutationResponse, _impl_.success_)}},
+  }}, {{
+    65535, 65535
+  }}, {{
+    // bool success = 1;
+    {PROTOBUF_FIELD_OFFSET(ReplicateMutationResponse, _impl_.success_), 0, 0,
+    (0 | ::_fl::kFcSingular | ::_fl::kBool)},
+    // string message = 2;
+    {PROTOBUF_FIELD_OFFSET(ReplicateMutationResponse, _impl_.message_), 0, 0,
+    (0 | ::_fl::kFcSingular | ::_fl::kUtf8String | ::_fl::kRepAString)},
+  }},
+  // no aux_entries
+  {{
+    "\44\0\7\0\0\0\0\0"
+    "csvservice.ReplicateMutationResponse"
+    "message"
+  }},
+};
+
+PROTOBUF_NOINLINE void ReplicateMutationResponse::Clear() {
+// @@protoc_insertion_point(message_clear_start:csvservice.ReplicateMutationResponse)
+  ::google::protobuf::internal::TSanWrite(&_impl_);
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.message_.ClearToEmpty();
+  _impl_.success_ = false;
+  _internal_metadata_.Clear<::google::protobuf::UnknownFieldSet>();
+}
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+        ::uint8_t* ReplicateMutationResponse::_InternalSerialize(
+            const MessageLite& base, ::uint8_t* target,
+            ::google::protobuf::io::EpsCopyOutputStream* stream) {
+          const ReplicateMutationResponse& this_ = static_cast<const ReplicateMutationResponse&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+        ::uint8_t* ReplicateMutationResponse::_InternalSerialize(
+            ::uint8_t* target,
+            ::google::protobuf::io::EpsCopyOutputStream* stream) const {
+          const ReplicateMutationResponse& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          // @@protoc_insertion_point(serialize_to_array_start:csvservice.ReplicateMutationResponse)
+          ::uint32_t cached_has_bits = 0;
+          (void)cached_has_bits;
+
+          // bool success = 1;
+          if (this_._internal_success() != 0) {
+            target = stream->EnsureSpace(target);
+            target = ::_pbi::WireFormatLite::WriteBoolToArray(
+                1, this_._internal_success(), target);
+          }
+
+          // string message = 2;
+          if (!this_._internal_message().empty()) {
+            const std::string& _s = this_._internal_message();
+            ::google::protobuf::internal::WireFormatLite::VerifyUtf8String(
+                _s.data(), static_cast<int>(_s.length()), ::google::protobuf::internal::WireFormatLite::SERIALIZE, "csvservice.ReplicateMutationResponse.message");
+            target = stream->WriteStringMaybeAliased(2, _s, target);
+          }
+
+          if (PROTOBUF_PREDICT_FALSE(this_._internal_metadata_.have_unknown_fields())) {
+            target =
+                ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+                    this_._internal_metadata_.unknown_fields<::google::protobuf::UnknownFieldSet>(::google::protobuf::UnknownFieldSet::default_instance), target, stream);
+          }
+          // @@protoc_insertion_point(serialize_to_array_end:csvservice.ReplicateMutationResponse)
+          return target;
+        }
+
+#if defined(PROTOBUF_CUSTOM_VTABLE)
+        ::size_t ReplicateMutationResponse::ByteSizeLong(const MessageLite& base) {
+          const ReplicateMutationResponse& this_ = static_cast<const ReplicateMutationResponse&>(base);
+#else   // PROTOBUF_CUSTOM_VTABLE
+        ::size_t ReplicateMutationResponse::ByteSizeLong() const {
+          const ReplicateMutationResponse& this_ = *this;
+#endif  // PROTOBUF_CUSTOM_VTABLE
+          // @@protoc_insertion_point(message_byte_size_start:csvservice.ReplicateMutationResponse)
+          ::size_t total_size = 0;
+
+          ::uint32_t cached_has_bits = 0;
+          // Prevent compiler warnings about cached_has_bits being unused
+          (void)cached_has_bits;
+
+          ::_pbi::Prefetch5LinesFrom7Lines(&this_);
+           {
+            // string message = 2;
+            if (!this_._internal_message().empty()) {
+              total_size += 1 + ::google::protobuf::internal::WireFormatLite::StringSize(
+                                              this_._internal_message());
+            }
+            // bool success = 1;
+            if (this_._internal_success() != 0) {
+              total_size += 2;
+            }
+          }
+          return this_.MaybeComputeUnknownFieldsSize(total_size,
+                                                     &this_._impl_._cached_size_);
+        }
+
+void ReplicateMutationResponse::MergeImpl(::google::protobuf::MessageLite& to_msg, const ::google::protobuf::MessageLite& from_msg) {
+  auto* const _this = static_cast<ReplicateMutationResponse*>(&to_msg);
+  auto& from = static_cast<const ReplicateMutationResponse&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:csvservice.ReplicateMutationResponse)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  if (!from._internal_message().empty()) {
+    _this->_internal_set_message(from._internal_message());
+  }
+  if (from._internal_success() != 0) {
+    _this->_impl_.success_ = from._impl_.success_;
+  }
+  _this->_internal_metadata_.MergeFrom<::google::protobuf::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void ReplicateMutationResponse::CopyFrom(const ReplicateMutationResponse& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:csvservice.ReplicateMutationResponse)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+
+void ReplicateMutationResponse::InternalSwap(ReplicateMutationResponse* PROTOBUF_RESTRICT other) {
+  using std::swap;
+  auto* arena = GetArena();
+  ABSL_DCHECK_EQ(arena, other->GetArena());
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::_pbi::ArenaStringPtr::InternalSwap(&_impl_.message_, &other->_impl_.message_, arena);
+        swap(_impl_.success_, other->_impl_.success_);
+}
+
+::google::protobuf::Metadata ReplicateMutationResponse::GetMetadata() const {
   return ::google::protobuf::Message::GetMetadataImpl(GetClassData()->full());
 }
 // @@protoc_insertion_point(namespace_scope)

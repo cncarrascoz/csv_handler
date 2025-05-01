@@ -1,22 +1,25 @@
 // gRPC service implementation for CSV handling
 #pragma once
 
-#include "core/IStateMachine.hpp"
-#include "storage/InMemoryStateMachine.hpp"
-#include "storage/column_store.hpp" // Include for ColumnStore backward compatibility
+// Standard library includes
 #include <unordered_map>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
 #include <vector>
 
-#include "proto/csv_service.grpc.pb.h" // gRPC service definition
+// gRPC / Protobuf includes
+#include <grpcpp/grpcpp.h> // Include base gRPC headers
+#include "proto/csv_service.grpc.pb.h" // Provides gRPC service & message definitions (including .pb.h)
 #include "proto/csv_service.pb.h"      // Protobuf message definitions
-#include "server_registry.hpp"
 
-// Added for gRPC client functionality used in forward_to_leader
-#include <grpcpp/create_channel.h>
-#include <grpcpp/security/credentials.h>
+// Project includes
+#include "core/IStateMachine.hpp" // Provides IStateMachine interface and Mutation struct
+#include "server/network/server_registry.hpp" // Provides network::ServerRegistry
+#include "storage/column_store.hpp"         // Provides storage::ColumnStore
+
+// Use specific gRPC types for clarity
+using grpc::Status;
 
 namespace network {
 
@@ -80,9 +83,16 @@ public:
         const csvservice::Empty* request,
         csvservice::ClusterStatusResponse* response) override;
 
+    grpc::Status RegisterPeer(grpc::ServerContext* context, const csvservice::RegisterPeerRequest* request, csvservice::RegisterPeerResponse* response) override;
+    grpc::Status Heartbeat(grpc::ServerContext* context, const csvservice::HeartbeatRequest* request, csvservice::HeartbeatResponse* response) override;
+
     // RPC called by leader to replicate upload to peers
     grpc::Status ReplicateUpload(grpc::ServerContext* context, const csvservice::CsvUploadRequest* request,
                                  csvservice::ReplicateUploadResponse* response) override;
+
+    // Internal RPC used by the leader to replicate a mutation to peers
+    grpc::Status ApplyMutation(grpc::ServerContext* context, const csvservice::ReplicateMutationRequest* request,
+                                 csvservice::ReplicateMutationResponse* response) override;
 
     // The following public members are maintained for backward compatibility with CLI
     // They should not be used in new code
@@ -97,7 +107,7 @@ public:
 
 private:
     // State machine that implements the core functionality
-    std::unique_ptr<IStateMachine> state_;
+    std::shared_ptr<IStateMachine> state_; // Use base interface, remove persistence::
     
     // Reference to the ServerRegistry
     ServerRegistry& registry_;
@@ -185,6 +195,9 @@ private:
 
         return true; // Indicate request was forwarded (or attempt was made)
     }
+
+    // Helper to replicate mutations (insert/delete) asynchronously
+    void replicate_mutation_async(const Mutation& mutation); // Remove persistence::
 };
 
 } // namespace network

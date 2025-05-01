@@ -22,6 +22,9 @@ service CsvService {
   
   // Internal RPC used by the leader to replicate an upload to peers
   rpc ReplicateUpload (CsvUploadRequest) returns (ReplicateUploadResponse);
+
+  // Internal RPC used by the leader to replicate a mutation to peers
+  rpc ApplyMutation (ReplicateMutationRequest) returns (ReplicateMutationResponse);
 }
 
 // Existing messages
@@ -116,6 +119,28 @@ message HeartbeatResponse {
 
 // Response message for the internal ReplicateUpload RPC
 message ReplicateUploadResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Messages for replicating mutations
+message ReplicateMutationRequest {
+  string filename = 1;
+  oneof mutation_type {
+    RowInsertMutation row_insert = 2;
+    RowDeleteMutation row_delete = 3;
+  }
+}
+
+message RowInsertMutation {
+  repeated string values = 1;
+}
+
+message RowDeleteMutation {
+  int32 row_index = 1;
+}
+
+message ReplicateMutationResponse {
   bool success = 1;
   string message = 2;
 }

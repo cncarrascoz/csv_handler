@@ -4,8 +4,8 @@
 #include <string>
 #include <chrono>
 #include <grpcpp/grpcpp.h>
-#include "../proto/csv_service.grpc.pb.h"
-#include "../proto/csv_service.pb.h"
+#include "proto/csv_service.grpc.pb.h"
+#include "proto/csv_service.pb.h"
 
 using grpc::Channel;
 using grpc::ClientContext;

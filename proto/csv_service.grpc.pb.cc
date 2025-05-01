@@ -33,6 +33,7 @@ static const char* CsvService_method_names[] = {
   "/csvservice.CsvService/RegisterPeer",
   "/csvservice.CsvService/Heartbeat",
   "/csvservice.CsvService/ReplicateUpload",
+  "/csvservice.CsvService/ApplyMutation",
 };
 
 std::unique_ptr< CsvService::Stub> CsvService::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options) {
@@ -53,6 +54,7 @@ CsvService::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel
   , rpcmethod_RegisterPeer_(CsvService_method_names[8], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_Heartbeat_(CsvService_method_names[9], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_ReplicateUpload_(CsvService_method_names[10], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_ApplyMutation_(CsvService_method_names[11], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
 
 ::grpc::Status CsvService::Stub::UploadCsv(::grpc::ClientContext* context, const ::csvservice::CsvUploadRequest& request, ::csvservice::CsvUploadResponse* response) {
@@ -308,6 +310,29 @@ void CsvService::Stub::async::ReplicateUpload(::grpc::ClientContext* context, co
   return result;
 }
 
+::grpc::Status CsvService::Stub::ApplyMutation(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest& request, ::csvservice::ReplicateMutationResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::csvservice::ReplicateMutationRequest, ::csvservice::ReplicateMutationResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_ApplyMutation_, context, request, response);
+}
+
+void CsvService::Stub::async::ApplyMutation(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest* request, ::csvservice::ReplicateMutationResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::csvservice::ReplicateMutationRequest, ::csvservice::ReplicateMutationResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_ApplyMutation_, context, request, response, std::move(f));
+}
+
+void CsvService::Stub::async::ApplyMutation(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest* request, ::csvservice::ReplicateMutationResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_ApplyMutation_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::csvservice::ReplicateMutationResponse>* CsvService::Stub::PrepareAsyncApplyMutationRaw(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::csvservice::ReplicateMutationResponse, ::csvservice::ReplicateMutationRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_ApplyMutation_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::csvservice::ReplicateMutationResponse>* CsvService::Stub::AsyncApplyMutationRaw(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncApplyMutationRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
 CsvService::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       CsvService_method_names[0],
@@ -419,6 +444,16 @@ CsvService::Service::Service() {
              ::csvservice::ReplicateUploadResponse* resp) {
                return service->ReplicateUpload(ctx, req, resp);
              }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      CsvService_method_names[11],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< CsvService::Service, ::csvservice::ReplicateMutationRequest, ::csvservice::ReplicateMutationResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](CsvService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::csvservice::ReplicateMutationRequest* req,
+             ::csvservice::ReplicateMutationResponse* resp) {
+               return service->ApplyMutation(ctx, req, resp);
+             }, this)));
 }
 
 CsvService::Service::~Service() {
@@ -495,6 +530,13 @@ CsvService::Service::~Service() {
 }
 
 ::grpc::Status CsvService::Service::ReplicateUpload(::grpc::ServerContext* context, const ::csvservice::CsvUploadRequest* request, ::csvservice::ReplicateUploadResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status CsvService::Service::ApplyMutation(::grpc::ServerContext* context, const ::csvservice::ReplicateMutationRequest* request, ::csvservice::ReplicateMutationResponse* response) {
   (void) context;
   (void) request;
   (void) response;
