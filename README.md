@@ -454,3 +454,70 @@ The newly added display feature demonstrates the extensibility of the architectu
 - Provides visual indication of data modifications as they happen
 
 This feature serves as a prototype for future real-time notification systems that could be implemented using the Raft protocol's log replication mechanism.
+
+## Raft Consensus Implementation
+
+This project includes a complete implementation of the Raft consensus protocol based on Eli Bendersky's tutorial series ["Implementing Raft"](https://eli.thegreenplace.net/2020/implementing-raft-part-0-introduction/). The implementation provides distributed consensus for the CSV handler, ensuring data consistency across multiple nodes.
+
+### Key Features
+
+- **Complete Raft Protocol**: Leader election, log replication, and safety guarantees
+- **gRPC Communication**: Inter-node communication using gRPC for all Raft RPCs
+- **Log Consistency**: Proper handling of log conflicts and commitment
+- **State Machine Application**: Committed entries are applied to the state machine
+
+### Building the Raft Implementation
+
+```bash
+# Build the entire project, including the Raft implementation
+mkdir -p build && cd build
+cmake ..
+make
+```
+
+### Running the Raft Demo
+
+The project includes a demo application that starts a cluster of 3 Raft nodes locally:
+
+```bash
+# Run the Raft demo
+./raft_demo
+```
+
+This will:
+1. Start 3 Raft nodes listening on localhost:50051-50053
+2. Wait for leader election to complete
+3. Submit test mutations through the leader
+4. Show the propagation of changes through the cluster
+
+### Raft Implementation Details
+
+#### Core Components
+
+- **RaftNode**: Implements the Raft consensus algorithm (`distributed/raft_node.hpp` and `distributed/raft_node.cpp`)
+- **RaftServer**: Exposes the RaftNode via gRPC (`distributed/raft_server.hpp` and `distributed/raft_server.cpp`)
+- **raft_service.proto**: Defines the Raft RPC protocol (`proto/raft_service.proto`)
+
+#### Key Raft RPCs
+
+1. **AppendEntries**: Used for log replication and as heartbeats
+   - Leaders send log entries to followers
+   - Empty AppendEntries used as heartbeats to maintain leadership
+
+2. **RequestVote**: Used during leader election
+   - Candidates request votes from other nodes
+   - Nodes grant votes based on log completeness
+
+#### Integration with CSV Handler
+
+The Raft implementation integrates with the existing CSV handler system:
+- Uses the same IStateMachine interface for applying operations
+- Leverages the existing Mutation struct for representing operations
+- Can be used with the existing DurableStateMachine for persistence
+
+### For Development
+
+When extending or modifying the Raft implementation, refer to:
+- The Raft paper: https://raft.github.io/raft.pdf
+- Eli Bendersky's tutorial: https://eli.thegreenplace.net/2020/implementing-raft-part-0-introduction/
+- Code comments throughout the implementation explaining key concepts

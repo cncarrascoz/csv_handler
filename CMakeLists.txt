@@ -46,10 +46,15 @@ add_library(persistence STATIC
     persistence/DurableStateMachine.cpp
 )
 
-# Distributed library with Raft implementation
+# Distributed library with Raft core implementation (no gRPC dependency)
+add_library(distributed_core STATIC
+    distributed/raft_node.cpp
+)
+
+# Distributed library with Raft implementation and gRPC
 add_library(distributed STATIC
     distributed/raft_node.cpp
-    distributed/heartbeat.cpp
+    distributed/raft_server_empty.cpp
 )
 
 # Utils library with file handling utilities
@@ -61,7 +66,9 @@ add_library(utils STATIC
 target_link_libraries(core PUBLIC csv_handler_cc_proto)
 target_link_libraries(storage PUBLIC core)
 target_link_libraries(persistence PUBLIC storage)
-target_link_libraries(distributed PUBLIC persistence)
+target_link_libraries(distributed_core PUBLIC persistence)
+target_link_libraries(distributed PUBLIC distributed_core csv_handler_cc_proto)
+target_link_libraries(distributed PUBLIC gRPC::grpc++ gRPC::grpc)
 
 # Server executable
 add_executable(server
@@ -76,6 +83,7 @@ target_link_libraries(server
     core
     utils
     persistence
+    distributed_core
     distributed
     gRPC::grpc++
     gRPC::grpc
@@ -92,6 +100,37 @@ add_executable(client
 target_link_libraries(client
     csv_handler_cc_proto
     utils
+    gRPC::grpc++
+    gRPC::grpc
+    protobuf::libprotobuf
+)
+
+# In-process Raft demo executable (no gRPC dependencies)
+add_executable(raft_in_process_test
+    distributed/in_process_test.cpp
+)
+
+target_link_libraries(raft_in_process_test
+    distributed_core
+    core
+    storage
+    persistence
+    utils
+)
+
+# Raft demo executable
+add_executable(raft_demo
+    distributed/main_raft.cpp
+)
+
+target_link_libraries(raft_demo
+    distributed_core
+    distributed
+    core
+    utils
+    persistence
+    storage
+    csv_handler_cc_proto
     gRPC::grpc++
     gRPC::grpc
     protobuf::libprotobuf

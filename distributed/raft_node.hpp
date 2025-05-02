@@ -110,6 +110,21 @@ public:
     // Expose AppendEntries for in-process harness only
     AppendEntriesReply handle_append_entries(const AppendEntriesArgs& args);
 
+    struct RequestVoteArgs {
+        uint64_t term;
+        std::string candidate_id;
+        uint64_t last_log_index;
+        uint64_t last_log_term;
+    };
+    
+    struct RequestVoteReply {
+        uint64_t term;
+        bool vote_granted;
+    };
+
+    // Expose RequestVote for in-process harness only
+    RequestVoteReply handle_request_vote(const RequestVoteArgs& args);
+
 private:
     std::string node_id_;
     std::shared_ptr<IStateMachine> state_machine_;
@@ -118,7 +133,7 @@ private:
     // Raft state
     std::atomic<ServerRole> role_;
     std::atomic<uint64_t> current_term_;
-    std::string voted_for_;
+    std::string voted_for_ = "";
     std::string current_leader_;
     uint64_t commit_index_;
     uint64_t last_applied_;
@@ -151,7 +166,10 @@ private:
     void send_append_entries_to_all(bool empty_only);
     void handle_append_entries_reply(size_t peer_idx, const AppendEntriesArgs& sent, const AppendEntriesReply& reply);
     
+    // Commit and apply helpers
+    void update_commit_index();
+    void apply_entries();
+    
     // Helpers
     void reset_election_deadline(std::mt19937& gen);
-    void apply_entries();
 };
