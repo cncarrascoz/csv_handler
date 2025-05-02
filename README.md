@@ -1,78 +1,145 @@
-# gRPC CSV Handler
+# ColumnarDB: A Distributed Column-Oriented Database System
 
-## 1. Project Overview
+ColumnarDB is a distributed column-oriented database system implemented in C++ that provides efficient storage, processing, and replication of structured data across multiple nodes. It leverages the Raft consensus algorithm to ensure consistency across the distributed cluster.
 
-This project implements a client-server system in C++ using gRPC and Protocol Buffers. The primary goal is to allow a client application to send CSV data to a server, where the server parses the data and stores it efficiently in memory using a column-store format. The system provides a modular, extensible command interface for data manipulation and analysis, with clean separation between frontend and backend logic. It is designed with future distributed architecture in mind.
+## Table of Contents
 
-## 2. Architecture
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [System Components](#system-components)
+- [Features](#features)
+- [Dependencies](#dependencies)
+- [Directory Structure](#directory-structure)
+- [Building and Running](#building-and-running)
+- [Client Commands](#client-commands)
+- [Server Commands](#server-commands)
+- [Data Operations](#data-operations)
+- [Distributed Consensus](#distributed-consensus)
+- [State Machine Architecture](#state-machine-architecture)
+- [Advanced Features](#advanced-features)
+- [Distributed Usage](#distributed-usage)
 
-- **Client-Server Model:** A standard client-server architecture where the client initiates requests and the server responds.
-- **Command Dispatch System:** A flexible menu-based command system in both client and server that maps command strings to handler functions.
-- **Communication:** gRPC is used for defining the service interface (`proto/csv_service.proto`) and handling remote procedure calls between the client and server.
-- **Data Storage:** The server stores the parsed CSV data entirely in memory in a column-oriented format (map of column names to vectors of values), optimized for analytical queries.
-- **Separation of Concerns:** Clear separation between interface, command processing, network communication, and storage logic.
+## Overview
 
-## 3. Features
+ColumnarDB is a column-oriented database system with distributed capabilities. The system stores data efficiently in columnar format, allowing for rapid analytical operations. A leader-follower architecture using the Raft consensus protocol ensures data consistency and fault tolerance across all nodes in the cluster.
 
-### Client Commands
-The system supports the following commands through its interactive menu interface:
+### Key Capabilities
 
-- **upload \<filename\>**: Upload a CSV file to the server
-- **list**: List all files stored on the server
-- **view \<filename\>**: View the contents of a CSV file stored on the server
-- **sum \<filename\> \<column_name\>**: Calculate the sum of values in a column
-- **avg \<filename\> \<column_name\>**: Calculate the average of values in a column
-- **insert \<filename\> \<values\>**: Insert a new row into an existing file
-- **delete \<filename\> \<row_index\>**: Delete a row from a file
-- **display \<filename\>**: Open a real-time display of a file in a new terminal, with live updates
-- **exit**: Exit the program
-- **help**: Display help information about available commands
+- **Efficient Columnar Storage**: Data is stored in a column-oriented format for optimized analytical processing
+- **Distributed Architecture**: Multiple nodes working together with automatic leader election
+- **Consensus Protocol**: Implementation of the Raft algorithm for distributed consistency
+- **Analytical Operations**: Fast aggregation functions (sum, average) on column data
+- **Data Modification**: Insert and delete operations with consistency guarantees
+- **gRPC Communication**: Fast, efficient inter-node communication and client connections
+- **State Machine Architecture**: Extensible design for different storage implementations
 
-The **display** command opens a new terminal window that shows the file content and automatically updates when the file changes on the server. This provides a real-time view that's useful for monitoring data that's being modified by other clients.
+## Architecture
 
-### Server Commands
-The server also has an interactive interface with these commands:
+The system is built on a distributed architecture consisting of:
 
-- **list**: List all loaded files with their metadata
-- **stats [filename]**: Show statistics for all files or a specific file
-- **exit**: Shutdown the server
-- **help**: Display help information
+- **Columnar Storage Engine**: Core data storage using column-oriented design
+- **State Machine Layer**: Implements the state transitions for data operations
+- **Raft Consensus Module**: Manages leader election and log replication
+- **gRPC Communication Layer**: Handles client requests and inter-node communication
+- **Persistence Layer**: Manages data durability across restarts
 
-## 4. Dependencies
+### Data Flow
+
+1. Clients connect to any node in the cluster via gRPC
+2. Non-leader nodes forward write requests to the leader
+3. Leader appends operation to its log and replicates to followers
+4. When a majority of nodes confirm, the leader commits the operation
+5. All nodes apply committed operations to their local state machines
+6. Results are returned to the client
+
+## System Components
+
+The system is organized into the following main components:
+
+- **Core**: Fundamental interfaces and data structures
+  - `IStateMachine`: Abstract interface for the state machine
+  - `Mutation`: Data structure representing state changes
+  - `TableView`: Read-only view of column data
+  
+- **Storage**: Column-oriented data storage implementation
+  - `ColumnStore`: The columnar data structure
+  - `InMemoryStateMachine`: In-memory implementation of the state machine
+  
+- **Distributed**: Consensus and replication implementations
+  - `RaftNode`: Implementation of the Raft consensus algorithm
+  - Server registry for tracking cluster membership
+  
+- **Persistence**: Durability mechanisms
+  - Write-ahead logging
+  - Snapshots for efficient recovery
+  
+- **Network**: gRPC service implementations
+  - Client request handling
+  - Inter-node communication
+
+## Features
+
+### Column-Oriented Storage
+
+Data is stored in a columnar format, which offers several advantages:
+
+- Efficient compression of similar column values
+- Improved cache efficiency for analytical operations
+- Better performance for operations that only need specific columns
+- Optimized aggregation operations
+
+### Distributed Consensus
+
+The system implements the Raft consensus algorithm to provide:
+
+- Strong consistency guarantees
+- Automatic leader election after failures
+- Ordered transaction log replication
+- Fault tolerance with majority quorum
+
+### State Machine Architecture
+
+All operations are modeled as state machine transitions:
+
+- The system maintains a replicated log of operations
+- Each operation is a deterministic transition
+- All nodes independently apply the same operations in the same order
+- Multiple state machine implementations for different storage needs
+
+## Dependencies
 
 To build and run this project, you need:
 
-- **C++ Compiler:** A modern C++ compiler supporting C++11 or later (e.g., GCC, Clang).
-- **CMake:** Version 3.10 or higher for building the project.
-- **gRPC:** The gRPC library and its dependencies (including Protocol Buffers). Installation instructions can be found at [grpc.io](https://grpc.io/docs/languages/cpp/quickstart/).
-- **Protocol Buffers:** Version 3.x or higher (usually installed as part of gRPC).
+- **C++17 Compiler**: A modern C++ compiler supporting C++17 or later (e.g., GCC, Clang)
+- **CMake**: Version 3.10 or higher for building the project
+- **gRPC**: The gRPC library and its dependencies (including Protocol Buffers). Installation instructions can be found at [grpc.io](https://grpc.io/docs/languages/cpp/quickstart/)
+- **Protocol Buffers**: Version 3.x or higher (usually installed as part of gRPC)
 
-*Note: The specific versions required might depend on your system setup. Ensure compatibility between gRPC and Protobuf.* 
+*Note: The specific versions required might depend on your system setup. Ensure compatibility between gRPC and Protobuf.*
 
-## 5. Directory Structure
+## Directory Structure
 
 ```
-csv_handler/
+columnardb/
 ├── build/          # Build directory (created by CMake)
 ├── client/
-│   ├── csv_client.cpp # Client logic implementation
-│   ├── csv_client.hpp # Client class header
-│   ├── main.cpp       # Client executable entry point
-│   ├── menu.cpp       # Client menu system implementation
-│   └── menu.hpp       # Client menu system header
+│   ├── csv_client.cpp  # Client logic implementation
+│   ├── csv_client.hpp  # Client class header
+│   ├── main.cpp        # Client executable entry point
+│   ├── menu.cpp        # Client menu system implementation
+│   └── menu.hpp        # Client menu system header
 ├── core/           # Core interfaces and data structures
 │   ├── IStateMachine.hpp  # State machine interface
 │   ├── Mutation.hpp       # Data mutation operations
 │   └── TableView.hpp      # Read-only view abstraction
-├── data/           # Directory containing sample CSV files
-│   ├── mock_data.csv  # Sample CSV file with 3 columns
-│   ├── mock_data1.csv # Sample CSV file with 4 columns
-│   └── test_data.csv  # Sample CSV file matching examples in this README
+├── data/           # Directory containing sample data files
+│   ├── mock_data.csv
+│   ├── mock_data1.csv
+│   └── test_data.csv
 ├── distributed/    # Distributed system components
-│   ├── heartbeat.cpp     # Node communication implementation
-│   ├── heartbeat.hpp     # Heartbeat monitoring interface
 │   ├── raft_node.cpp     # Raft consensus implementation
-│   └── raft_node.hpp     # Raft node interface
+│   ├── raft_node.hpp     # Raft node interface
+│   └── main.cpp          # Test entry point for Raft
 ├── persistence/    # Data persistence components
 │   ├── DurableStateMachine.cpp  # Persistent state machine implementation
 │   ├── DurableStateMachine.hpp  # Durable state machine interface
@@ -84,7 +151,6 @@ csv_handler/
 │   ├── csv_service.proto     # Service definition
 │   ├── mutation.proto        # Mutation message definitions
 │   ├── cluster_service.proto # Cluster communication service
-│   ├── generated/            # Generated protobuf code
 │   ├── csv_service.pb.cc     # Generated Protobuf C++ source
 │   ├── csv_service.pb.h      # Generated Protobuf C++ header
 │   ├── csv_service.grpc.pb.cc # Generated gRPC C++ source
@@ -92,15 +158,19 @@ csv_handler/
 ├── server/
 │   ├── network/
 │   │   ├── csv_service_impl.cpp # Server RPC implementation
-│   │   └── csv_service_impl.hpp # Server RPC class header
+│   │   ├── csv_service_impl.hpp # Server RPC class header
+│   │   ├── server_registry.cpp  # Server registry implementation
+│   │   └── server_registry.hpp  # Server registry interface
 │   ├── main.cpp                 # Server executable entry point
 │   ├── menu.cpp                 # Server menu system implementation
 │   └── menu.hpp                 # Server menu system header
 ├── storage/        # Storage implementations
 │   ├── InMemoryStateMachine.cpp  # In-memory state machine implementation
 │   ├── InMemoryStateMachine.hpp  # In-memory state machine header
-│   ├── csv_parser.cpp            # CSV parsing utilities
-│   └── csv_parser.hpp            # CSV parser interface
+│   ├── column_store.cpp          # Column store implementation
+│   ├── column_store.hpp          # Column store interface
+│   ├── csv_parser.cpp            # CSV parsing utilities (legacy)
+│   └── csv_parser.hpp            # CSV parser interface (legacy)
 ├── utils/
 │   ├── file_utils.cpp # File reading utilities
 │   └── file_utils.hpp # Header for file utilities
@@ -108,349 +178,271 @@ csv_handler/
 └── README.md          # This file
 ```
 
-### Key Components:
+## Building and Running
 
-- **`client/`**: Contains the gRPC client implementation, command handlers, and menu system.
-  - `csv_client.cpp/hpp`: Core client functionality for communicating with the server.
-  - `menu.cpp/hpp`: Command dispatch system for the client interface.
-  - `main.cpp`: Entry point that initializes the menu system and handles CLI arguments.
+### Building
 
-- **`server/`**: Contains the gRPC server implementation, including the service logic.
-  - `network/csv_service_impl.cpp/hpp`: Implementation of the gRPC service.
-  - `menu.cpp/hpp`: Command dispatch system for the server interface.
-  - `main.cpp`: Server entry point that starts the gRPC server and menu system.
+1. **Generate Protocol Buffer Files:**
+   * Navigate to the project root directory.
+   * Ensure `protoc` and `grpc_cpp_plugin` are in your PATH or provide full paths.
+   * Run the following command:
+     ```bash
+     protoc --proto_path=. --cpp_out=./proto --grpc_out=./proto --plugin=protoc-gen-grpc=$(which grpc_cpp_plugin) proto/csv_service.proto proto/mutation.proto proto/cluster_service.proto
+     ```
+   * This will generate the necessary `.pb.h`, `.pb.cc`, `.grpc.pb.h`, and `.grpc.pb.cc` files inside the `proto/` directory.
 
-- **`storage/`**: Core data storage and manipulation logic.
-  - `column_store.cpp/hpp`: Defines the column-oriented data structure and operations.
-  - `csv_parser.cpp/hpp`: Functionality for parsing CSV data into column format.
+2. **Configure with CMake:**
+   * Create a build directory and navigate into it:
+     ```bash
+     mkdir -p build
+     cd build
+     ```
+   * Run CMake to configure the project:
+     ```bash
+     cmake ..
+     ```
 
-- **`proto/`**: Protocol Buffers definitions and generated code.
-  - `csv_service.proto`: Defines all RPC methods and message types.
-  - Generated files: Compiled protocol buffer code for C++.
+3. **Compile:**
+   * From the `build` directory, run:
+     ```bash
+     make
+     ```
+   * This will create the `server`, `client`, and other executables in the `build` directory.
 
-- **`utils/`**: Helper utilities used by both client and server.
+4. **Clean Build (if needed):**
+   * To clean the build and start fresh:
+     ```bash
+     # From the build directory
+     make clean
+     
+     # For a complete clean (removing all CMake-generated files)
+     cd ..
+     rm -rf build
+     mkdir build
+     cd build
+     cmake ..
+     make
+     ```
 
-## 6. Build Instructions
+5. **Rebuild After Changes:**
+   * After making changes to source files, simply run:
+     ```bash
+     # From the build directory
+     make
+     ```
+   * If you've added new source files or changed the CMakeLists.txt:
+     ```bash
+     # From the build directory
+     cmake ..
+     make
+     ```
 
-1.  **Generate Protocol Buffer Files:**
-    *   Navigate to the project root directory (`csv_handler/`).
-    *   Ensure `protoc` and `grpc_cpp_plugin` are in your PATH or provide full paths.
-    *   Run the following command:
-        ```bash
-        protoc --proto_path=. --cpp_out=./proto --grpc_out=./proto --plugin=protoc-gen-grpc=$(which grpc_cpp_plugin) proto/csv_service.proto
-        ```
-    *   This will generate the `.pb.h`, `.pb.cc`, `.grpc.pb.h`, and `.grpc.pb.cc` files inside the `proto/` directory.
+### Running a Single Node
 
-2.  **Configure with CMake:**
-    *   Create a build directory and navigate into it:
-        ```bash
-        mkdir -p build
-        cd build
-        ```
-    *   Run CMake to configure the project:
-        ```bash
-        cmake ..
-        ```
+To run a standalone server instance:
 
-3.  **Compile:**
-    *   From the `build` directory, run `make`:
-        ```bash
-        make
-        ```
-    *   This will create the `server` and `client` executables in the `build` directory.
-
-4.  **Clean Build (if needed):**
-    *   To clean the build and start fresh:
-        ```bash
-        # From the build directory
-        make clean
-        
-        # For a complete clean (removing all CMake-generated files)
-        cd ..
-        rm -rf build
-        mkdir build
-        cd build
-        cmake ..
-        make
-        ```
-
-5.  **Rebuild After Changes:**
-    *   After making changes to source files, simply run:
-        ```bash
-        # From the build directory
-        make
-        ```
-    *   If you've added new source files or changed the CMakeLists.txt:
-        ```bash
-        # From the build directory
-        cmake ..
-        make
-        ```
-
-## 7. Running the Application
-
-1.  **Start the Server:**
-    *   From the `build` directory, run:
-        ```bash
-        ./server
-        ```
-    *   The server will start listening on `0.0.0.0:50051` (all network interfaces) and show its command menu.
-    *   You can use server commands like `list` to see loaded files or `stats` to view statistics.
-    *   Use the new `ip` command to display the server's IP address for remote client connections.
-
-2.  **Run the Client:**
-    *   The client can be run in two modes from the `build` directory.
-    *   **Command-Line Mode:**
-        *   Execute specific commands directly:
-            ```bash
-            ./client <server_address> <command> [arguments]
-            ```
-            Example: `./client localhost:50051 list`
-    *   **Interactive Mode:**
-        *   Start an interactive session:
-            ```bash
-            ./client <server_address>
-            ```
-            Example: `./client localhost:50051`
-
-## 8. Distributed Usage
-
-The system supports multiple clients connecting to a single server, even from different machines on the same network.
-
-1.  **Server Setup:**
-    *   Start the server on the host machine:
-        ```bash
-        ./server
-        ```
-    *   Use the `ip` command in the server menu to display the server's IP address.
-    *   Make note of the IP address (e.g., 192.168.1.100) to use for client connections.
-    *   Ensure that port 50051 is not blocked by any firewall.
-
-2.  **Client Connection from Another Machine:**
-    *   On a different machine, build the client using the same build instructions.
-    *   Connect to the remote server using its IP address:
-        ```bash
-        ./client 192.168.1.100:50051
-        ```
-        (Replace with the actual IP address of the server)
-
-3.  **Collaborative Features:**
-    *   All clients connect to the same server and share the same data.
-    *   When one client uploads a CSV file or makes changes (insert/delete rows), those changes are immediately visible to all other connected clients.
-    *   Use the `list` command to see all available files on the server.
-    *   Use the `view <filename>` command to see the current state of any file.
-
-4.  **Network Considerations:**
-    *   Both machines must be on the same network or have appropriate routing configured.
-    *   For connections across different networks, you may need to set up port forwarding on your router.
-    *   For security in production environments, consider implementing authentication and encryption.
-
-## 9. Example CSV Format and Operations
-
-The system works with standard CSV format, primarily designed for numerical data:
-
-```csv
-ID,Value1,Value2
-1,30,50000
-2,25,60000
-3,35,70000
+```bash
+./server localhost:50051
 ```
 
-### Data Operations:
+The server will start listening on `0.0.0.0:50051` (advertised as localhost:50051) by default.
 
-1. **Upload:** Send a CSV file to the server:
-   ```
-   > upload ../data/test_data.csv
-   ```
+### Running a Cluster
 
-2. **View:** Display the contents of a stored file in a formatted table:
-   ```
-   > view test_data.csv
-   ```
-   Output:
-   ```
-   +------+----------+----------+
-   |  ID  |  Value1  |  Value2  |
-   +------+----------+----------+
-   |  1   |  30      |  50000   |
-   |  2   |  25      |  60000   |
-   |  3   |  35      |  70000   |
-   +------+----------+----------+
-   ```
+Start multiple server instances with different addresses, specifying peer connections:
 
-3. **Analyze:** Perform calculations on columns:
-   ```
-   > sum test_data.csv Value2
-   Sum of column 'Value2' in file 'test_data.csv': 180000
-   
-   > avg test_data.csv Value1
-   Average of column 'Value1' in file 'test_data.csv': 30
-   ```
+```bash
+# First node (will be initial leader)
+./server localhost:8080
 
-4. **Modify:** Insert or delete rows:
-   ```
-   > insert test_data.csv 4,40,80000
-   > delete test_data.csv 2
-   ```
+# Second node (specifies first node as peer)
+./server localhost:8081 localhost:8080
 
-## 10. Server Internals: Parsing and Storage
-
-### Column Store Structure
-
-Data is stored in the `ColumnStore` structure defined in `storage/column_store.hpp`:
-
-```cpp
-struct ColumnStore {
-    std::vector<std::string> column_names;
-    std::unordered_map<std::string, std::vector<std::string>> columns;
-};
+# Third node (specifies first and second nodes as peers)
+./server localhost:8082 localhost:8080 localhost:8081
 ```
 
-This structure allows efficient access to specific columns for operations like sum and average.
+Each server instance needs a unique address (hostname:port). The first argument is the server's own address, and any additional arguments are the addresses of other nodes in the cluster to connect to.
 
-### Column Operations
+### Running the Client
 
-The system provides these operations on the column store:
-- `compute_sum`: Calculate the sum of numeric values in a column
-- `compute_average`: Calculate the average of numeric values in a column
-- `insert_row`: Add a new row to the store
-- `delete_row`: Remove a row from the store
+The client can be run in two modes:
 
-## 11. Architecture and Design Patterns
+* **Interactive Mode:**
+  ```bash
+  ./client localhost:50051
+  ```
 
-The project follows these key architectural principles:
+* **Command-Line Mode:**
+  ```bash
+  ./client localhost:50051 <command> [arguments]
+  ```
+  Example: `./client localhost:50051 list`
 
-1. **Command Pattern**: Commands are represented as strings mapped to handler functions, making it easy to add new commands.
+## Client Commands
 
-2. **Separation of Concerns**:
-   - `menu.cpp/hpp`: User interface handling
-   - `csv_client.cpp/hpp` & `csv_service_impl.cpp/hpp`: Network communication
-   - `column_store.cpp/hpp`: Data storage and analytics
-   - `csv_parser.cpp/hpp`: Parsing and data conversion
-   - `file_utils.cpp/hpp`: File handling and output formatting
+The system supports the following commands through its interactive client interface:
 
-3. **Extensibility**: New commands can be added by:
-   - Creating new handler functions
-   - Registering them with the menu system
-   - Implementing any required backend logic
+- **upload \<filename\>**: Upload a data file to the server
+- **list**: List all tables stored in the database
+- **view \<filename\>**: View the contents of a table
+- **sum \<filename\> \<column_name\>**: Calculate the sum of values in a column
+- **avg \<filename\> \<column_name\>**: Calculate the average of values in a column
+- **insert \<filename\> \<values...\>**: Insert values into a table
+- **delete \<filename\> \<row_index\>**: Delete a row from a table
+- **display \<filename\>**: Open a real-time display of a table in a new terminal, with live updates
+- **status**: Show the cluster status and leader information
+- **exit**: Exit the program
+- **help**: Display help information about available commands
 
-4. **User Interface Enhancements**:
-   - Table formatting for CSV data display with:
-     - Plus signs (+) at corners and intersections
-     - Dashes (-) for horizontal borders
-     - Vertical bars (|) for column separators
-     - Proper spacing and alignment of data
+The **display** command opens a new terminal window that shows the table content and automatically updates when the data changes on the server. This provides a real-time view that's useful for monitoring data that's being modified by other clients.
 
-This architecture facilitates the future addition of distributed features (e.g., automatic CSV reprinting when files change) with minimal refactoring.
+## Server Commands
 
-## 12. Codebase Architecture
+The server also has an interactive interface with these commands:
 
-The codebase has been refactored with a more structured, layered architecture:
+- **list**: List all loaded tables with their metadata
+- **stats [filename]**: Show statistics for all tables or a specific table
+- **status**: Display the current node status, role, and cluster information
+- **ip**: Display the server's IP address for remote client connections
+- **exit**: Shutdown the server
+- **help**: Display help information
 
-### Core Layer
-- `core/IStateMachine.hpp`: Abstract interface for state management
-- `core/Mutation.hpp`: Defines data modification operations
-- `core/TableView.hpp`: Read-only view of stored data
+## Data Operations
 
-### Storage Layer
-- `storage/InMemoryStateMachine.hpp/cpp`: In-memory implementation of IStateMachine
-- Replaced previous `column_store` implementation with a more extensible design
+### Mutation Processing
 
-### Persistence Layer
-- `persistence/WriteAheadLog.hpp/cpp`: Log for recording mutations before they're applied
-- `persistence/Snapshot.hpp/cpp`: Mechanism for capturing and restoring state
-- `persistence/DurableStateMachine.hpp/cpp`: Persistent state machine implementation
+All data-changing operations are treated as mutations that flow through the system:
 
-### Distributed Layer
-- `distributed/raft_node.hpp/cpp`: Implementation of the Raft consensus algorithm
-- `distributed/heartbeat.hpp/cpp`: Node health monitoring and communication
+1. Client sends a mutation request to any node
+2. If the receiving node is not the leader, it forwards to the leader
+3. Leader appends operation to its log and replicates to followers
+4. When a majority of nodes confirm, the leader commits the operation
+5. All nodes apply committed operations to their local state machines
+6. Results are returned to the client
 
-### Client Enhancements
-- Real-time display functionality with live updates
-- Connection health checking
-- Improved error handling and retry logic
+### Analytical Operations
 
-## 13. Future Distributed Version
+The system supports various analytical operations:
 
-The system has been refactored with a state machine architecture that enables future durability and distributed features:
+- **Aggregations**: Sum, average, etc. of numeric columns
+- **Filtering**: Select specific rows based on criteria
+- **Projections**: Select specific columns for viewing
 
-### State Machine Architecture
+## Distributed Consensus
 
-At the core of the system is the `IStateMachine` interface, which abstracts the underlying storage mechanism:
+### Raft Implementation
 
-```cpp
-class IStateMachine {
-    virtual void apply(const Mutation& mutation) = 0;
-    virtual TableView view(const std::string& file) const = 0;
-    virtual ~IStateMachine() = default;
-};
-```
+The distributed consensus implementation follows the Raft protocol:
 
-This approach allows for different implementations of the state machine (in-memory, durable, distributed) while maintaining a consistent interface for the server logic. The current implementation uses `InMemoryStateMachine`, which stores data in memory without persistence.
+- **Leader Election**: Automatic election of a leader node when the previous leader fails
+- **Log Replication**: Replication of mutation operations to all follower nodes
+- **Safety Guarantees**: Ensures consistency through log matching and election restrictions
+- **Membership Changes**: Adding or removing nodes from the cluster
 
-### Mutation System
+### Leader-Follower Pattern
 
-The system uses a custom `Mutation` struct to represent state-changing operations:
+- The leader node processes all write operations
+- Follower nodes forward write requests to the leader
+- Read operations can be served by any node (eventual consistency) or by the leader (strong consistency)
+- If the leader fails, a new leader is automatically elected
 
-```cpp
-struct Mutation {
-    std::string file;
-    std::variant<RowInsert, RowDelete> op;
-    
-    bool has_insert() const { return std::holds_alternative<RowInsert>(op); }
-    bool has_delete() const { return std::holds_alternative<RowDelete>(op); }
-};
-```
+## State Machine Architecture
 
-This design provides type safety and extensibility for adding new mutation types in the future.
+The system uses a state machine architecture where:
 
-### Write-Ahead Log (WAL)
+- **State**: The current database with all its tables
+- **Mutations**: Operations that transform the state
+- **Log**: An ordered sequence of mutations
+- **Consensus**: Agreement on the log order
+- **Application**: The process of applying mutations to the state
 
-The system includes a Write-Ahead Log (WAL) implementation that will enable durability:
+This design enables:
 
-- Mutations are first written to the log before being applied to the state machine
-- This ensures that no data is lost in case of system crashes
-- The WAL can be replayed during system restart to recover the state
+- **Multiple Storage Implementations**: In-memory, durable, or distributed
+- **Replay Capability**: The system can rebuild state by replaying the log
+- **Snapshot and Recovery**: State can be saved and restored efficiently
 
-### Snapshot Mechanism
+## Advanced Features
 
-For efficient recovery and state transfer, a snapshot mechanism is included:
+- **Durability**: Write-ahead logging and snapshots
+- **Conflict Resolution**: Handling of concurrent operations
+- **Cluster Management**: Dynamic addition and removal of nodes
+- **Real-time Notifications**: Clients can subscribe to change events
 
-- Periodically captures the entire state of the system
-- Allows for faster recovery than replaying the entire log
-- Serves as a baseline for new nodes joining the cluster
+## Distributed Usage
 
-### Distributed Consensus with Raft
+The system is designed for distributed operation with multiple nodes working in a coordinated cluster:
 
-The system is prepared for distributed operation using the Raft consensus algorithm:
+### Setting Up a Distributed Cluster
 
-- `RaftNode` implements the core Raft protocol (leader election, log replication)
-- `HeartbeatManager` provides node health monitoring and communication
-- Support for different server roles (LEADER, FOLLOWER, CANDIDATE, STANDALONE)
-- State replication across multiple nodes for fault tolerance
+1. **Start the Leader Node:**
+   * Initialize the first node as a standalone server:
+     ```bash
+     ./server localhost:50051
+     ```
+   * This node will initially be a leader with no peers.
+   * Use the `ip` command in the server menu to display the server's IP address for other nodes to connect to.
 
-These components are currently implemented as stubs and will be fully activated in future releases. The current implementation defaults to STANDALONE mode, which operates similarly to the previous single-server architecture.
+2. **Add Follower Nodes:**
+   * Start additional nodes and specify the leader address in the `--peers` parameter:
+     ```bash
+     # On a second machine/terminal
+     ./server localhost:8081 localhost:50051
+     
+     # On a third machine/terminal
+     ./server localhost:8082 localhost:50051 localhost:8081
+     ```
+   * Replace the IP addresses with the actual addresses of your nodes.
+   * Make sure that the specified ports are not blocked by any firewall.
 
-### Benefits
+3. **Client Connection to the Cluster:**
+   * Clients can connect to any node in the cluster:
+     ```bash
+     ./client 192.168.1.100:8080   # Connect to node1
+     ./client 192.168.1.101:8081   # Connect to node2
+     ./client 192.168.1.102:8082   # Connect to node3
+     ```
+   * Write operations (insert, delete) sent to follower nodes are automatically forwarded to the leader.
+   * Read operations (view, sum, avg) can be processed by any node.
 
-This architecture provides several benefits:
+### Distributed Operation Features
 
-1. **Reliability**: Durability through the WAL and snapshots
-2. **Scalability**: Distribute load across multiple nodes
-3. **Fault Tolerance**: Continue operation even if some nodes fail
-4. **Consistency**: Strong consistency guarantees through Raft consensus
-5. **Backward Compatibility**: All existing client functionality continues to work
+* **Automatic Leader Election:**
+  * If the leader node fails, the remaining nodes will automatically elect a new leader.
+  * The system will continue to operate as long as a majority of nodes are functional.
 
-To use the distributed features in future releases, multiple instances of the server can be started with appropriate configuration to form a cluster.
+* **Consistent Replication:**
+  * Data modifications are replicated to all nodes following the Raft consensus protocol.
+  * All nodes eventually have the same view of the data.
 
-### Real-Time Display Feature
+* **Fault Tolerance:**
+  * The system tolerates failures of minority of nodes (e.g., 1 out of 3, 2 out of 5).
+  * After recovery, nodes automatically catch up with missed operations.
 
-The newly added display feature demonstrates the extensibility of the architecture:
+* **Monitoring Cluster Status:**
+  * Use the `status` command on any server or client to view the current cluster state:
+    ```
+    > status
+    Current leader: 192.168.1.100:8080
+    Node role: FOLLOWER
+    Active nodes: 3
+    ```
 
-- Opens a new terminal window with real-time view of the data
-- Updates automatically when data changes on the server
-- Uses a background thread to poll for changes
-- Maintains proper synchronization with mutex locks
-- Provides visual indication of data modifications as they happen
+### Network Considerations
 
-This feature serves as a prototype for future real-time notification systems that could be implemented using the Raft protocol's log replication mechanism.
+* All nodes must be able to communicate with each other (bi-directional connectivity).
+* For production environments:
+  * Configure appropriate firewalls to allow traffic between nodes.
+  * Consider using secure communication with TLS/SSL (future enhancement).
+  * For connections across different networks, you may need to set up port forwarding.
+
+### Real-Time Collaborative Features
+
+* All clients connect to the distributed cluster and share the same data.
+* When a client uploads data or makes changes (insert/delete rows), those changes are:
+  1. Replicated to all nodes in the cluster
+  2. Immediately visible to all other connected clients
+* Use the `list` command to see all available tables on the cluster.
+* Use the `view <filename>` command to see the current state of any table.
+* Use the `display <filename>` command for real-time monitoring of tables as they change.
