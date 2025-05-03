@@ -49,6 +49,7 @@ add_library(persistence STATIC
 # Distributed library with fault tolerance implementation
 add_library(distributed STATIC
     server/network/server_registry.cpp
+    distributed/raft_node.cpp
 )
 
 # Utils library with file handling utilities

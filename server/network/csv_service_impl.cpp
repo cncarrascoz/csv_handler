@@ -13,6 +13,8 @@
 #include <iostream>
 #include <numeric>
 #include <limits>
+#include "../../distributed/raft_node.hpp"
+#include "../../storage/column_store.hpp"
 
 using grpc::ServerContext;
 using grpc::Status;
@@ -25,8 +27,21 @@ namespace network {
 CsvServiceImpl::CsvServiceImpl(ServerRegistry& registry)
     : registry_(registry), state_(std::make_unique<InMemoryStateMachine>()) // Simplified state machine for now
 { 
-    // Constructor body - can be empty if initialization is done in member initializers
-    // or if registry handles its own lifecycle setup elsewhere (like in main.cpp)
+    // Initialize the Raft node with the state machine and server registry
+    raft_node_ = std::make_shared<RaftNode>(
+        registry_.get_self_address(),
+        std::shared_ptr<IStateMachine>(state_.get(), [](IStateMachine*) {}), // Non-owning shared_ptr
+        registry_.get_peer_addresses()
+    );
+    
+    // Set up bidirectional relationship between Raft and ServerRegistry
+    raft_node_->set_server_registry(&registry_);
+    registry_.set_raft_node(raft_node_);
+    
+    // Start the Raft node
+    raft_node_->start();
+    
+    std::cout << "CsvServiceImpl initialized with Raft node at " << registry_.get_self_address() << std::endl;
 } 
 
 Status CsvServiceImpl::UploadCsv(
@@ -242,25 +257,51 @@ Status CsvServiceImpl::ViewFile(ServerContext* context,
 
 Status CsvServiceImpl::DeleteRow(ServerContext* context, const csvservice::DeleteRowRequest* request, csvservice::ModificationResponse* response) {
     const std::string& filename = request->filename();
-    int row_index = request->row_index();
-
-    std::cout << "DeleteRow called for file: " << filename << ", row index: " << row_index << std::endl;
+    int row_index = static_cast<int>(request->row_index());
+    std::cout << "DeleteRow called for file: " << filename << ", row: " << row_index << std::endl;
 
     // Define the handler function to perform the actual deletion
     auto handler = [this, &filename, row_index, response](const csvservice::DeleteRowRequest*, csvservice::ModificationResponse* resp) -> grpc::Status {
         try {
+            // Create a mutation for this delete operation
             Mutation mutation;
             mutation.file = filename;
             mutation.op = RowDelete{row_index};
-            state_->apply(mutation);
-
-            resp->set_success(true);
-            resp->set_message("Row deleted successfully.");
-            std::cout << "Successfully deleted row " << row_index << " from " << filename << std::endl;
             
-            // Replicate the delete mutation to peers if this node is the leader
-            if (registry_.is_leader()) {
-                replicate_mutation_async(mutation);
+            std::cout << "Created delete mutation for file " << filename 
+                      << " at row " << row_index << std::endl;
+
+            // If this node is the leader, submit the mutation to Raft
+            if (registry_.is_leader() && raft_node_) {
+                std::cout << "Leader submitting delete mutation to Raft for file: " << filename << std::endl;
+                bool success = raft_node_->submit(mutation);
+                
+                if (success) {
+                    resp->set_success(true);
+                    resp->set_message("Row deleted successfully.");
+                    std::cout << "Successfully submitted delete mutation to Raft for " << filename << std::endl;
+                } else {
+                    resp->set_success(false);
+                    resp->set_message("Failed to submit delete mutation to Raft.");
+                    std::cerr << "Failed to submit delete mutation to Raft for " << filename << std::endl;
+                    return Status(grpc::StatusCode::INTERNAL, "Failed to submit to Raft");
+                }
+            } 
+            // If we don't have a Raft node or are in standalone mode, apply directly
+            else if (!raft_node_) {
+                std::cout << "Applying delete mutation directly (no Raft) for file: " << filename << std::endl;
+                state_->apply(mutation);
+                
+                resp->set_success(true);
+                resp->set_message("Row deleted successfully.");
+                std::cout << "Successfully deleted row from " << filename << " (direct application)" << std::endl;
+            }
+            // Otherwise, we shouldn't be here - the request should have been forwarded to the leader
+            else {
+                resp->set_success(false);
+                resp->set_message("Not the leader, but request wasn't forwarded properly.");
+                std::cerr << "DeleteRow error: Not leader but handling request for " << filename << std::endl;
+                return Status(grpc::StatusCode::INTERNAL, "Not leader");
             }
 
             return Status::OK;
@@ -276,12 +317,11 @@ Status CsvServiceImpl::DeleteRow(ServerContext* context, const csvservice::Delet
     std::function<grpc::Status(const csvservice::DeleteRowRequest*, csvservice::ModificationResponse*)> handler_func = handler;
     bool forwarded = forward_to_leader_if_needed(request, response, handler_func);
     if (forwarded) {
-        // The response is populated by the forward_to_leader_if_needed function upon receiving leader's response
-        // Determine status based on response success flag
+        // Response populated by forwarded call
         std::cout << "DeleteRow request forwarded to leader for file: " << filename << std::endl;
         return response->success() ? Status::OK : Status(grpc::StatusCode::INTERNAL, response->message());
     } else {
-        // Executed locally (either leader or standalone)
+        // Executed locally
         return handler(request, response);
     }
 }
@@ -293,25 +333,52 @@ Status CsvServiceImpl::InsertRow(ServerContext* context, const csvservice::Inser
     // Define the handler function to perform the actual insertion
     auto handler = [this, &filename, request, response](const csvservice::InsertRowRequest*, csvservice::ModificationResponse* resp) -> grpc::Status {
         try {
+            // Create a mutation for this insert operation
             Mutation mutation;
             mutation.file = filename;
+            
+            // Create the row insert operation
             RowInsert insert_op;
-            // Convert protobuf repeated field to std::vector<std::string>
             insert_op.values.reserve(request->values_size());
             for (const auto& val : request->values()) {
                 insert_op.values.push_back(val);
             }
             mutation.op = insert_op;
+            
+            std::cout << "Created insert mutation for file " << filename 
+                      << " with " << insert_op.values.size() << " values" << std::endl;
 
-            state_->apply(mutation);
-
-            resp->set_success(true);
-            resp->set_message("Row inserted successfully.");
-            std::cout << "Successfully inserted row into " << filename << std::endl;
-
-            // Replicate the insert mutation to peers if this node is the leader
-            if (registry_.is_leader()) {
-                replicate_mutation_async(mutation);
+            // If this node is the leader, submit the mutation to Raft
+            if (registry_.is_leader() && raft_node_) {
+                std::cout << "Leader submitting insert mutation to Raft for file: " << filename << std::endl;
+                bool success = raft_node_->submit(mutation);
+                
+                if (success) {
+                    resp->set_success(true);
+                    resp->set_message("Row inserted successfully.");
+                    std::cout << "Successfully submitted insert mutation to Raft for " << filename << std::endl;
+                } else {
+                    resp->set_success(false);
+                    resp->set_message("Failed to submit insert mutation to Raft.");
+                    std::cerr << "Failed to submit insert mutation to Raft for " << filename << std::endl;
+                    return Status(grpc::StatusCode::INTERNAL, "Failed to submit to Raft");
+                }
+            } 
+            // If we don't have a Raft node or are in standalone mode, apply directly
+            else if (!raft_node_) {
+                std::cout << "Applying insert mutation directly (no Raft) for file: " << filename << std::endl;
+                state_->apply(mutation);
+                
+                resp->set_success(true);
+                resp->set_message("Row inserted successfully.");
+                std::cout << "Successfully inserted row into " << filename << " (direct application)" << std::endl;
+            }
+            // Otherwise, we shouldn't be here - the request should have been forwarded to the leader
+            else {
+                resp->set_success(false);
+                resp->set_message("Not the leader, but request wasn't forwarded properly.");
+                std::cerr << "InsertRow error: Not leader but handling request for " << filename << std::endl;
+                return Status(grpc::StatusCode::INTERNAL, "Not leader");
             }
 
             return Status::OK;
@@ -336,109 +403,325 @@ Status CsvServiceImpl::InsertRow(ServerContext* context, const csvservice::Inser
     }
 }
 
-// --- STUB IMPLEMENTATIONS for methods causing linker errors ---
-
-// Stub for ApplyMutation (called by peers when leader replicates)
-Status CsvServiceImpl::ApplyMutation(ServerContext* context, const csvservice::ReplicateMutationRequest* request, csvservice::ReplicateMutationResponse* response) {
-    // Correctly access fields based on proto definition
-    const std::string& filename = request->filename(); // Filename is top-level
-    std::cout << "[Stub] ApplyMutation called for file: " << filename << std::endl;
-
-    // TODO: Implement actual mutation application logic using state_->apply()
-    // Need to reconstruct the C++ Mutation object from the proto request
-    try {
-         Mutation mutation; // Defined in core/Mutation.hpp
-         mutation.file = filename;
-         if (request->has_row_insert()) { // Check oneof case
-             const auto& insert_mutation_proto = request->row_insert(); // Get the inner message
-             // Convert proto repeated string to std::vector<std::string>
-             mutation.op = RowInsert{std::vector<std::string>(insert_mutation_proto.values().begin(), insert_mutation_proto.values().end())};
-         } else if (request->has_row_delete()) { // Check oneof case
-             const auto& delete_mutation_proto = request->row_delete(); // Get the inner message
-             mutation.op = RowDelete{delete_mutation_proto.row_index()};
-         } else {
-             // This case should ideally not happen if the request is valid proto
-             response->set_success(false);
-             response->set_message("Invalid mutation type in request");
-             return Status(grpc::StatusCode::INVALID_ARGUMENT, "Invalid mutation type");
-         }
-         state_->apply(mutation); // Apply the reconstructed C++ mutation
-         response->set_success(true);
-         response->set_message("Mutation applied by follower (stub).");
-         return Status::OK;
-    } catch (const std::exception& e) {
-         std::cerr << "[Stub] Error applying mutation: " << e.what() << std::endl;
-         response->set_success(false);
-         response->set_message(std::string("Failed to apply mutation: ") + e.what());
-         return Status(grpc::StatusCode::INTERNAL, e.what());
+// Implementation of AppendEntries RPC
+Status CsvServiceImpl::AppendEntries(ServerContext* context, 
+                                    const csvservice::AppendEntriesRequest* request,
+                                    csvservice::AppendEntriesResponse* response) {
+    std::cout << "AppendEntries RPC received from: " << request->leader_id() << std::endl;
+    
+    // Check if Raft node is initialized
+    if (!raft_node_) {
+        std::cerr << "Error: Raft node not initialized" << std::endl;
+        return Status(StatusCode::INTERNAL, "Raft node not initialized");
     }
-}
-
-// Stub for replicate_mutation_async (called by leader after local insert/delete)
-void CsvServiceImpl::replicate_mutation_async(const Mutation& mutation) {
-     std::cout << "[Stub] replicate_mutation_async called for file: " << mutation.file << std::endl;
-     // TODO: Implement actual asynchronous replication logic for mutations
-     auto peers = registry_.get_all_servers(); // Use get_all_servers
-     for (const auto& peer_addr : peers) {
-         if (peer_addr == registry_.get_self_address()) continue;
-
-         // Create a copy of the mutation for the thread
-         Mutation mutation_copy = mutation;
-
-         std::thread([peer_addr, mutation_copy]() {
-             std::cout << "  [Stub] Replication thread for mutation started for: " << peer_addr << std::endl;
-             try {
-                 auto channel = grpc::CreateChannel(peer_addr, grpc::InsecureChannelCredentials());
-                 auto stub = csvservice::CsvService::NewStub(channel);
-                 csvservice::ReplicateMutationRequest req;
-                 csvservice::ReplicateMutationResponse resp;
-                 ClientContext context;
-                 std::chrono::system_clock::time_point deadline = 
-                        std::chrono::system_clock::now() + std::chrono::seconds(5);
-                 context.set_deadline(deadline);
-
-                 // Populate request from mutation_copy
-                 req.set_filename(mutation_copy.file); // Set top-level filename
-
-                 if (std::holds_alternative<RowInsert>(mutation_copy.op)) {
-                    auto* row_insert_proto = req.mutable_row_insert(); // Get mutable inner message
-                    const auto& row_insert_data = std::get<RowInsert>(mutation_copy.op); // Get C++ RowInsert
-                    // Copy values from C++ RowInsert.values to proto RowInsertMutation.values
-                    row_insert_proto->mutable_values()->Add(row_insert_data.values.begin(), row_insert_data.values.end());
-                 } else if (std::holds_alternative<RowDelete>(mutation_copy.op)) {
-                    auto* row_delete_proto = req.mutable_row_delete(); // Get mutable inner message
-                    row_delete_proto->set_row_index(std::get<RowDelete>(mutation_copy.op).row_index);
-                 }
-
-                 Status status = stub->ApplyMutation(&context, req, &resp);
-                 if (!status.ok() || !resp.success()) {
-                    std::cerr << "    [Stub] Failed to replicate mutation to " << peer_addr << ": " << status.error_message() << std::endl;
-                 }
-             } catch (const std::exception& e) {
-                  std::cerr << "    [Stub] Exception replicating mutation to " << peer_addr << ": " << e.what() << std::endl;
-             }
-             std::cout << "  [Stub] Replication thread for mutation finished for: " << peer_addr << std::endl;
-         }).detach();
-     }
-}
-
-// Stub for ComputeSum
-Status CsvServiceImpl::ComputeSum(ServerContext* context, const csvservice::ColumnOperationRequest* request, csvservice::NumericResponse* response) {
-    std::cout << "[Stub] ComputeSum called." << std::endl;
-    // TODO: Implement sum logic using state_->view()
-    response->set_success(true);
-    response->set_message("Sum calculation stub.");
-    response->set_value(0.0); // Default value
+    
+    // Convert AppendEntriesRequest to our internal format
+    RaftNode::AppendEntriesArgs args;
+    args.term = request->term();
+    args.leader_id = request->leader_id();
+    args.prev_log_index = request->prev_log_index();
+    args.prev_log_term = request->prev_log_term();
+    args.leader_commit = request->leader_commit();
+    
+    // Convert entries
+    for (const auto& entry : request->entries()) {
+        RaftNode::LogEntry log_entry;
+        log_entry.term = entry.term();
+        
+        // Convert mutation
+        const auto& mutation = entry.mutation();
+        log_entry.cmd.file = mutation.filename();
+        
+        if (mutation.has_row_insert()) {
+            std::vector<std::string> values;
+            for (const auto& value : mutation.row_insert().values()) {
+                values.push_back(value);
+            }
+            log_entry.cmd.op = RowInsert{values};
+        } else if (mutation.has_row_delete()) {
+            log_entry.cmd.op = RowDelete{static_cast<int>(mutation.row_delete().row_index())};
+        }
+        
+        args.entries.push_back(log_entry);
+    }
+    
+    // Process the AppendEntries request
+    RaftNode::AppendEntriesReply reply;
+    raft_node_->handle_append_entries_safe(args, reply);
+    
+    // Convert reply to gRPC response
+    response->set_term(reply.term);
+    response->set_success(reply.success);
+    response->set_conflict_index(reply.conflict_index);
+    response->set_conflict_term(reply.conflict_term);
+    
     return Status::OK;
 }
 
-// Stub for ComputeAverage
-Status CsvServiceImpl::ComputeAverage(ServerContext* context, const csvservice::ColumnOperationRequest* request, csvservice::NumericResponse* response) {
-    std::cout << "[Stub] ComputeAverage called." << std::endl;
-    // TODO: Implement average logic using state_->view()
+Status CsvServiceImpl::RequestVote(ServerContext* context,
+                                  const csvservice::RequestVoteRequest* request,
+                                  csvservice::RequestVoteResponse* response) {
+    std::cout << "RequestVote RPC received from: " << request->candidate_id() << std::endl;
+    
+    // Check if Raft node is initialized
+    if (!raft_node_) {
+        std::cerr << "Error: Raft node not initialized" << std::endl;
+        return Status(StatusCode::INTERNAL, "Raft node not initialized");
+    }
+    
+    // Convert RequestVoteRequest to our internal format
+    RaftNode::RequestVoteArgs args;
+    args.term = request->term();
+    args.candidate_id = request->candidate_id();
+    args.last_log_index = request->last_log_index();
+    args.last_log_term = request->last_log_term();
+    
+    // Process the RequestVote request
+    RaftNode::RequestVoteReply reply;
+    raft_node_->handle_request_vote_safe(args, reply);
+    
+    // Convert reply to gRPC response
+    response->set_term(reply.term);
+    response->set_vote_granted(reply.vote_granted);
+    
+    return Status::OK;
+}
+
+// Implementation of Heartbeat RPC
+grpc::Status CsvServiceImpl::Heartbeat(grpc::ServerContext* context, 
+                                      const csvservice::HeartbeatRequest* request, 
+                                      csvservice::HeartbeatResponse* response) {
+    std::cout << "Heartbeat received from: " << request->server_address() << std::endl;
+    
+    // Update leader information in response
     response->set_success(true);
-    response->set_message("Average calculation stub.");
-    response->set_value(0.0); // Default value
+    response->set_leader_address(registry_.get_leader());
+    
+    return grpc::Status::OK;
+}
+
+// Stub for ApplyMutation (called by peers when leader replicates)
+grpc::Status CsvServiceImpl::ApplyMutation(grpc::ServerContext* context,
+                                          const csvservice::ReplicateMutationRequest* request,
+                                          csvservice::ReplicateMutationResponse* response) {
+    // Check if this is a Raft AppendEntries proxy request
+    if (request->filename() == "raft_heartbeat" || 
+        request->filename() == "raft_append_entries_header" ||
+        (request->has_row_insert() && !request->row_insert().values().empty() && 
+         request->row_insert().values(0).find("|") != std::string::npos)) {
+        
+        // This is a Raft AppendEntries proxy request
+        // Forward it to the RaftNode
+        if (raft_node_) {
+            raft_node_->handle_append_entries_rpc(*request, *response);
+        } else {
+            response->set_success(false);
+        }
+        return grpc::Status::OK;
+    }
+
+    // Regular mutation handling
+    std::cout << "Received mutation for file: " << request->filename() << std::endl;
+    
+    // If we're not the leader and this is a client request, redirect to the leader
+    if (raft_node_ && raft_node_->role() != ServerRole::LEADER && raft_node_->role() != ServerRole::STANDALONE) {
+        std::string leader = raft_node_->current_leader();
+        if (!leader.empty()) {
+            response->set_success(false);
+            response->set_message("Not the leader. Current leader: " + leader);
+            return grpc::Status(grpc::StatusCode::FAILED_PRECONDITION, "Not the leader");
+        }
+    }
+    
+    // Create a Mutation object from the request
+    Mutation mutation;
+    mutation.file = request->filename();
+    
+    if (request->has_row_insert()) {
+        const auto& insert = request->row_insert();
+        std::vector<std::string> values;
+        for (const auto& value : insert.values()) {
+            values.push_back(value);
+        }
+        mutation.op = RowInsert{values};
+    } else if (request->has_row_delete()) {
+        const auto& del = request->row_delete();
+        mutation.op = RowDelete{static_cast<int>(del.row_index())};
+    } else {
+        response->set_success(false);
+        return grpc::Status(grpc::StatusCode::INVALID_ARGUMENT, "Invalid mutation type");
+    }
+    
+    // Apply the mutation using Raft
+    bool success = false;
+    if (raft_node_) {
+        // Submit the mutation to Raft
+        success = raft_node_->submit(mutation);
+    } else {
+        // Apply directly to the state machine (legacy mode)
+        try {
+            state_->apply(mutation);
+            success = true;
+        } catch (const std::exception& e) {
+            response->set_success(false);
+            return grpc::Status(grpc::StatusCode::INTERNAL, e.what());
+        }
+    }
+    
+    response->set_success(success);
+    return grpc::Status::OK;
+}
+
+// Stub for RegisterPeer
+grpc::Status CsvServiceImpl::RegisterPeer(grpc::ServerContext* context,
+                                         const csvservice::RegisterPeerRequest* request,
+                                         csvservice::RegisterPeerResponse* response) {
+    std::string peer_address = request->peer_address();
+    
+    // Check if this is a Raft RequestVote proxy
+    if (peer_address.find('|') != std::string::npos) {
+        // This is a Raft RequestVote proxy request
+        // Format: candidate_id|term|last_log_index|last_log_term
+        response->set_success(true);
+        response->set_leader_address(registry_.get_leader());
+        return grpc::Status::OK;
+    }
+    
+    // Regular peer registration
+    registry_.register_peer(peer_address);
+    
+    response->set_success(true);
+    response->set_message("Peer registered successfully");
+    
+    // Always include the leader address in the response
+    response->set_leader_address(registry_.get_leader());
+    
+    return grpc::Status::OK;
+}
+
+// Helper for replicate_mutation_async (called by leader after local insert/delete)
+void CsvServiceImpl::replicate_mutation_async(const Mutation& mutation) {
+    // If we have a Raft node, use it for replication
+    if (raft_node_) {
+        // Submit the mutation to Raft
+        bool success = raft_node_->submit(mutation);
+        if (!success) {
+            std::cerr << "Failed to submit mutation to Raft: " << mutation.file << std::endl;
+        }
+        return;
+    }
+    
+    // Legacy replication logic (without Raft)
+    std::cout << "Asynchronously replicating " << mutation.file << " to peers..." << std::endl;
+    
+    // Get all peers from registry
+    auto peers = registry_.get_peer_addresses();
+    
+    // Create a ReplicateMutationRequest from the Mutation
+    csvservice::ReplicateMutationRequest request;
+    request.set_filename(mutation.file);
+    
+    if (mutation.has_insert()) {
+        auto* insert = request.mutable_row_insert();
+        for (const auto& value : mutation.insert().values) {
+            insert->add_values(value);
+        }
+    } else if (mutation.has_delete()) {
+        auto* del = request.mutable_row_delete();
+        del->set_row_index(mutation.del().row_index);
+    }
+    
+    // For each peer, send the mutation asynchronously
+    for (const auto& peer_address : peers) {
+        std::thread([this, peer_address, request]() {
+            // Create a new channel and stub for this peer
+            auto channel = grpc::CreateChannel(peer_address, grpc::InsecureChannelCredentials());
+            auto stub = csvservice::CsvService::NewStub(channel);
+            
+            // Set up RPC
+            grpc::ClientContext context;
+            csvservice::ReplicateMutationResponse response;
+            
+            // Set a timeout
+            context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(500));
+            
+            // Send the RPC
+            auto status = stub->ApplyMutation(&context, request, &response);
+            
+            if (!status.ok()) {
+                std::cerr << "Failed to replicate mutation to " << peer_address 
+                          << ": " << status.error_message() << std::endl;
+            } else if (!response.success()) {
+                std::cerr << "Peer " << peer_address << " rejected mutation: " 
+                          << response.message() << std::endl;
+            }
+        }).detach();
+    }
+}
+
+// Implementation of ComputeSum
+Status CsvServiceImpl::ComputeSum(ServerContext* context, const csvservice::ColumnOperationRequest* request, csvservice::NumericResponse* response) {
+    const std::string& filename = request->filename();
+    const std::string& column_name = request->column_name();
+    
+    std::cout << "ComputeSum called for file: " << filename 
+              << ", column: " << column_name << std::endl;
+    
+    try {
+        // Get the file from the state machine
+        TableView view = state_->view(filename);
+        
+        // Use the compute_sum method of the TableView class
+        double sum = view.compute_sum(column_name);
+        
+        response->set_success(true);
+        response->set_message("Sum calculated successfully.");
+        response->set_value(sum);
+        
+        std::cout << "Sum of column '" << column_name << "' in file '" 
+                  << filename << "': " << sum << std::endl;
+    } catch (const std::exception& e) {
+        response->set_success(false);
+        response->set_message(std::string("Error computing sum: ") + e.what());
+        response->set_value(0.0);
+        
+        std::cerr << "ComputeSum exception for " << filename << ": " 
+                  << e.what() << std::endl;
+    }
+    
+    return Status::OK;
+}
+
+// Implementation of ComputeAverage
+Status CsvServiceImpl::ComputeAverage(ServerContext* context, const csvservice::ColumnOperationRequest* request, csvservice::NumericResponse* response) {
+    const std::string& filename = request->filename();
+    const std::string& column_name = request->column_name();
+    
+    std::cout << "ComputeAverage called for file: " << filename 
+              << ", column: " << column_name << std::endl;
+    
+    try {
+        // Get the file from the state machine
+        TableView view = state_->view(filename);
+        
+        // Use the compute_average method of the TableView class
+        double avg = view.compute_average(column_name);
+        
+        response->set_success(true);
+        response->set_message("Average calculated successfully.");
+        response->set_value(avg);
+        
+        std::cout << "Average of column '" << column_name << "' in file '" 
+                  << filename << "': " << avg << std::endl;
+    } catch (const std::exception& e) {
+        response->set_success(false);
+        response->set_message(std::string("Error computing average: ") + e.what());
+        response->set_value(0.0);
+        
+        std::cerr << "ComputeAverage exception for " << filename << ": " 
+                  << e.what() << std::endl;
+    }
+    
     return Status::OK;
 }
 
@@ -450,27 +733,6 @@ Status CsvServiceImpl::ListLoadedFiles(ServerContext* context, const csvservice:
     for (const auto& file_pair : files_map) { // Iterate map pairs
         response->add_filenames(file_pair.first); // Add the filename (key) to the response
     }
-    return Status::OK;
-}
-
-// Stub for RegisterPeer
-Status CsvServiceImpl::RegisterPeer(ServerContext* context, const csvservice::RegisterPeerRequest* request, csvservice::RegisterPeerResponse* response) {
-     // Use peer_address()
-     std::cout << "[Stub] RegisterPeer called by: " << request->peer_address() << std::endl;
-     // TODO: Implement actual peer registration logic in ServerRegistry if needed
-     // registry_.register_peer(request->peer_address()); // Pass address
-     response->set_success(true); // Assume success for stub
-     response->set_message("Peer registered (stub).");
-     return Status::OK;
-}
-
-// Stub for Heartbeat
-Status CsvServiceImpl::Heartbeat(ServerContext* context, const csvservice::HeartbeatRequest* request, csvservice::HeartbeatResponse* response) {
-    // std::cout << "[Stub] Heartbeat received from: " << request->sender_address() << std::endl; // sender_address may not exist
-    // TODO: Update peer status in ServerRegistry based on heartbeat
-    response->set_leader_address(registry_.get_leader()); // Respond with current leader
-    // response->set_leader_term(0); // Incorrect field name
-    response->set_success(true); // Set success field
     return Status::OK;
 }
 
@@ -489,7 +751,7 @@ Status CsvServiceImpl::GetClusterStatus(ServerContext* context, const csvservice
      // response->add_server_addresses(registry_.get_self_address());
      response->set_active_server_count(count); // Use correct field name
      response->set_success(true);
-     response->set_message("Cluster status fetched (stub)");
+     response->set_message("Cluster status fetched (stub)"); // Added semicolon
      return Status::OK;
 }
 

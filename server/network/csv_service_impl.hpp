@@ -17,6 +17,7 @@
 #include "core/IStateMachine.hpp" // Provides IStateMachine interface and Mutation struct
 #include "server/network/server_registry.hpp" // Provides network::ServerRegistry
 #include "storage/column_store.hpp"         // Provides storage::ColumnStore
+#include "distributed/raft_node.hpp"        // Provides RaftNode for consensus
 
 // Use specific gRPC types for clarity
 using grpc::Status;
@@ -94,6 +95,13 @@ public:
     grpc::Status ApplyMutation(grpc::ServerContext* context, const csvservice::ReplicateMutationRequest* request,
                                  csvservice::ReplicateMutationResponse* response) override;
 
+    // Raft consensus protocol RPCs
+    grpc::Status AppendEntries(grpc::ServerContext* context, const csvservice::AppendEntriesRequest* request,
+                              csvservice::AppendEntriesResponse* response) override;
+    
+    grpc::Status RequestVote(grpc::ServerContext* context, const csvservice::RequestVoteRequest* request,
+                            csvservice::RequestVoteResponse* response) override;
+
     // The following public members are maintained for backward compatibility with CLI
     // They should not be used in new code
     mutable std::shared_mutex files_mutex;
@@ -107,10 +115,13 @@ public:
 
 private:
     // State machine that implements the core functionality
-    std::shared_ptr<IStateMachine> state_; // Use base interface, remove persistence::
+    std::unique_ptr<IStateMachine> state_; // Use base interface, remove persistence::
     
     // Reference to the ServerRegistry
     ServerRegistry& registry_;
+    
+    // Raft consensus node
+    std::shared_ptr<RaftNode> raft_node_;
     
     // Update loaded_files_cache for backward compatibility
     void update_loaded_files_cache() const;

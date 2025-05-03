@@ -190,6 +190,41 @@ void ServerRegistry::set_server_list_change_callback(std::function<void(const st
     server_list_change_callback_ = callback;
 }
 
+// Get all peer addresses (excluding self)
+std::vector<std::string> ServerRegistry::get_peer_addresses() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return peer_addresses_;
+}
+
+// Set the Raft node reference
+void ServerRegistry::set_raft_node(std::shared_ptr<RaftNode> raft_node) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    raft_node_ = raft_node;
+    
+    // Set up a callback to update the leader when Raft consensus changes
+    if (raft_node_) {
+        std::cout << "ServerRegistry: Raft node set successfully" << std::endl;
+    }
+}
+
+// Update leader based on Raft consensus
+void ServerRegistry::update_leader_from_raft(const std::string& leader_address, uint64_t term) {
+    std::lock_guard<std::mutex> lock(mutex_);
+    
+    // Only update if the leader has changed
+    if (leader_address_ != leader_address) {
+        std::cout << "ServerRegistry: Leader updated from Raft consensus to " 
+                  << leader_address << " (term " << term << ")" << std::endl;
+        
+        leader_address_ = leader_address;
+        
+        // Notify about leader change
+        if (leader_change_callback_) {
+            leader_change_callback_(leader_address_);
+        }
+    }
+}
+
 // Health check thread function
 void ServerRegistry::health_check_thread() {
     const auto check_interval = std::chrono::seconds(3);

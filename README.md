@@ -288,8 +288,11 @@ The system supports the following commands through its interactive client interf
 - **view \<filename\>**: View the contents of a table
 - **sum \<filename\> \<column_name\>**: Calculate the sum of values in a column
 - **avg \<filename\> \<column_name\>**: Calculate the average of values in a column
-- **insert \<filename\> \<values...\>**: Insert values into a table
-- **delete \<filename\> \<row_index\>**: Delete a row from a table
+- **insert \<filename\> \<value1\> \<value2\> \<value3\> ...**: Insert a new row with the specified values
+  - Example: `insert test13.csv Ruby 1995 Yukihiro_Matsumoto`
+  - Note: Values containing spaces should be enclosed in quotes or use underscores
+  - The number of values must match the number of columns in the table
+- **delete \<filename\> \<row_index\>**: Delete the row at the specified index
 - **display \<filename\>**: Open a real-time display of a table in a new terminal, with live updates
 - **status**: Show the cluster status and leader information
 - **exit**: Exit the program
@@ -382,60 +385,56 @@ The system is designed for distributed operation with multiple nodes working in 
      ./server localhost:50051
      ```
    * This node will initially be a leader with no peers.
-   * Use the `ip` command in the server menu to display the server's IP address for other nodes to connect to.
+   * Use the `list` command in the client to verify the server is running correctly.
 
 2. **Add Follower Nodes:**
-   * Start additional nodes and specify the leader address in the `--peers` parameter:
+   * Start additional nodes and specify the leader address as a peer:
      ```bash
-     # On a second machine/terminal
-     ./server localhost:8081 localhost:50051
+     # On a second terminal
+     ./server localhost:50052 localhost:50051
      
-     # On a third machine/terminal
-     ./server localhost:8082 localhost:50051 localhost:8081
+     # On a third terminal
+     ./server localhost:50053 localhost:50051 localhost:50052
      ```
-   * Replace the IP addresses with the actual addresses of your nodes.
-   * Make sure that the specified ports are not blocked by any firewall.
+   * Each server should be started in a separate terminal window.
+   * Make sure to use different port numbers for each server instance.
 
-3. **Client Connection to the Cluster:**
-   * Clients can connect to any node in the cluster:
+3. **Testing Distributed Functionality:**
+   * Connect a client to the leader node:
      ```bash
-     ./client 192.168.1.100:8080   # Connect to node1
-     ./client 192.168.1.101:8081   # Connect to node2
-     ./client 192.168.1.102:8082   # Connect to node3
+     ./client localhost:50051
      ```
-   * Write operations (insert, delete) sent to follower nodes are automatically forwarded to the leader.
-   * Read operations (view, sum, avg) can be processed by any node.
+   * Upload a test CSV file:
+     ```
+     upload /path/to/your/file.csv
+     ```
+   * Insert a new row:
+     ```
+     insert file.csv value1 value2 value3
+     ```
+   * Verify the insert was successful:
+     ```
+     view file.csv
+     ```
+   * Connect another client to a follower node:
+     ```bash
+     ./client localhost:50052
+     ```
+   * Verify that the follower has the same data:
+     ```
+     view file.csv
+     ```
+   * Test sum and average operations on both nodes to ensure they return the same results:
+     ```
+     sum file.csv NumericColumn
+     avg file.csv NumericColumn
+     ```
 
-### Distributed Operation Features
-
-* **Automatic Leader Election:**
-  * If the leader node fails, the remaining nodes will automatically elect a new leader.
-  * The system will continue to operate as long as a majority of nodes are functional.
-
-* **Consistent Replication:**
-  * Data modifications are replicated to all nodes following the Raft consensus protocol.
-  * All nodes eventually have the same view of the data.
-
-* **Fault Tolerance:**
-  * The system tolerates failures of minority of nodes (e.g., 1 out of 3, 2 out of 5).
-  * After recovery, nodes automatically catch up with missed operations.
-
-* **Monitoring Cluster Status:**
-  * Use the `status` command on any server or client to view the current cluster state:
-    ```
-    > status
-    Current leader: 192.168.1.100:8080
-    Node role: FOLLOWER
-    Active nodes: 3
-    ```
-
-### Network Considerations
-
-* All nodes must be able to communicate with each other (bi-directional connectivity).
-* For production environments:
-  * Configure appropriate firewalls to allow traffic between nodes.
-  * Consider using secure communication with TLS/SSL (future enhancement).
-  * For connections across different networks, you may need to set up port forwarding.
+4. **Troubleshooting:**
+   * If nodes can't communicate, ensure there are no firewall issues blocking the ports.
+   * If a follower can't connect to the leader, verify the leader is running and the address is correct.
+   * If data isn't replicating properly, check the server logs for error messages.
+   * For local testing, use different port numbers on localhost (e.g., 50051, 50052, 50053).
 
 ### Real-Time Collaborative Features
 

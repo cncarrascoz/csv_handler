@@ -10,6 +10,10 @@
 #include <random>
 #include <functional>
 #include <map>
+#include <memory>
+
+// Forward declaration
+class RaftNode;
 
 namespace network {
 
@@ -52,11 +56,20 @@ public:
     // Get count of active servers
     size_t active_server_count() const;
     
+    // Get all peer addresses (excluding self)
+    std::vector<std::string> get_peer_addresses() const;
+    
     // Set callback for leader change events
     void set_leader_change_callback(std::function<void(const std::string&)> callback);
     
     // Set callback for server list change events
     void set_server_list_change_callback(std::function<void(const std::vector<std::string>&)> callback);
+    
+    // Set the Raft node reference
+    void set_raft_node(std::shared_ptr<RaftNode> raft_node);
+    
+    // Update leader based on Raft consensus
+    void update_leader_from_raft(const std::string& leader_address, uint64_t term);
 
 private:
     // Private constructor for singleton
@@ -98,6 +111,9 @@ private:
     // Map to track consecutive health check failures
     std::map<std::string, int> consecutive_failures_;
 
+    // Raft node reference
+    std::shared_ptr<RaftNode> raft_node_;
+    
     // Callbacks
     std::function<void(const std::string&)> leader_change_callback_;
     std::function<void(const std::vector<std::string>&)> server_list_change_callback_;
