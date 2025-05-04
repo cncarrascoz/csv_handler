@@ -24,7 +24,7 @@ target_link_libraries(csv_handler_cc_proto PUBLIC
 # Include directories
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_CURRENT_SOURCE_DIR}/proto
+    # ${CMAKE_CURRENT_SOURCE_DIR}/proto # Remove this - handled by target includes/linking
 )
 
 # Core library with state machine interface and table view
@@ -44,12 +44,12 @@ add_library(persistence STATIC
     persistence/WriteAheadLog.cpp
     persistence/Snapshot.cpp
     persistence/DurableStateMachine.cpp
+    persistence/PersistenceManager.cpp
 )
 
-# Distributed library with Raft implementation
+# Distributed library with fault tolerance implementation
 add_library(distributed STATIC
-    distributed/raft_node.cpp
-    distributed/heartbeat.cpp
+    server/network/server_registry.cpp
 )
 
 # Utils library with file handling utilities
@@ -60,7 +60,7 @@ add_library(utils STATIC
 # Link dependencies
 target_link_libraries(core PUBLIC csv_handler_cc_proto)
 target_link_libraries(storage PUBLIC core)
-target_link_libraries(persistence PUBLIC storage)
+target_link_libraries(persistence PUBLIC core storage)
 target_link_libraries(distributed PUBLIC persistence)
 
 # Server executable
@@ -70,6 +70,8 @@ add_executable(server
     server/menu.cpp
 )
 
+target_include_directories(server PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+
 target_link_libraries(server
     csv_handler_cc_proto
     storage
@@ -78,6 +80,7 @@ target_link_libraries(server
     persistence
     distributed
     gRPC::grpc++
+    gRPC::grpc++_reflection
     gRPC::grpc
     protobuf::libprotobuf
 )

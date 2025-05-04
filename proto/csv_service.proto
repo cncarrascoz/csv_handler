@@ -14,6 +14,17 @@ service CsvService {
   rpc ComputeAverage (ColumnOperationRequest) returns (NumericResponse);
   rpc InsertRow (InsertRowRequest) returns (ModificationResponse);
   rpc DeleteRow (DeleteRowRequest) returns (ModificationResponse);
+  
+  // Fault tolerance and cluster management
+  rpc GetClusterStatus (Empty) returns (ClusterStatusResponse);
+  rpc RegisterPeer (RegisterPeerRequest) returns (RegisterPeerResponse);
+  rpc Heartbeat (HeartbeatRequest) returns (HeartbeatResponse);
+  
+  // Internal RPC used by the leader to replicate an upload to peers
+  rpc ReplicateUpload (CsvUploadRequest) returns (ReplicateUploadResponse);
+
+  // Internal RPC used by the leader to replicate a mutation to peers
+  rpc ApplyMutation (ReplicateMutationRequest) returns (ReplicateMutationResponse);
 }
 
 // Existing messages
@@ -73,6 +84,63 @@ message DeleteRowRequest {
 }
 
 message ModificationResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Fault tolerance and cluster management messages
+message ClusterStatusResponse {
+  bool success = 1;
+  string message = 2;
+  string leader_address = 3;
+  repeated string server_addresses = 4;
+  int32 active_server_count = 5;
+}
+
+message RegisterPeerRequest {
+  string peer_address = 1;
+}
+
+message RegisterPeerResponse {
+  bool success = 1;
+  string message = 2;
+  string leader_address = 3;
+}
+
+message HeartbeatRequest {
+  string server_address = 1;
+  bool is_leader = 2;
+}
+
+message HeartbeatResponse {
+  bool success = 1;
+  string leader_address = 2;
+}
+
+// Response message for the internal ReplicateUpload RPC
+message ReplicateUploadResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// Messages for replicating mutations
+message ReplicateMutationRequest {
+  string filename = 1;
+  oneof mutation_type {
+    RowInsertMutation row_insert = 2;
+    RowDeleteMutation row_delete = 3;
+  }
+}
+
+message RowInsertMutation {
+  repeated string values = 1;
+}
+
+message RowDeleteMutation {
+  int32 row_index = 1;
+}
+
+message ReplicateMutationResponse {
   bool success = 1;
   string message = 2;
 }

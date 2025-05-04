@@ -89,6 +89,44 @@ class CsvService final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ModificationResponse>> PrepareAsyncDeleteRow(::grpc::ClientContext* context, const ::csvservice::DeleteRowRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ModificationResponse>>(PrepareAsyncDeleteRowRaw(context, request, cq));
     }
+    // Fault tolerance and cluster management
+    virtual ::grpc::Status GetClusterStatus(::grpc::ClientContext* context, const ::csvservice::Empty& request, ::csvservice::ClusterStatusResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ClusterStatusResponse>> AsyncGetClusterStatus(::grpc::ClientContext* context, const ::csvservice::Empty& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ClusterStatusResponse>>(AsyncGetClusterStatusRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ClusterStatusResponse>> PrepareAsyncGetClusterStatus(::grpc::ClientContext* context, const ::csvservice::Empty& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ClusterStatusResponse>>(PrepareAsyncGetClusterStatusRaw(context, request, cq));
+    }
+    virtual ::grpc::Status RegisterPeer(::grpc::ClientContext* context, const ::csvservice::RegisterPeerRequest& request, ::csvservice::RegisterPeerResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::RegisterPeerResponse>> AsyncRegisterPeer(::grpc::ClientContext* context, const ::csvservice::RegisterPeerRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::RegisterPeerResponse>>(AsyncRegisterPeerRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::RegisterPeerResponse>> PrepareAsyncRegisterPeer(::grpc::ClientContext* context, const ::csvservice::RegisterPeerRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::RegisterPeerResponse>>(PrepareAsyncRegisterPeerRaw(context, request, cq));
+    }
+    virtual ::grpc::Status Heartbeat(::grpc::ClientContext* context, const ::csvservice::HeartbeatRequest& request, ::csvservice::HeartbeatResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::HeartbeatResponse>> AsyncHeartbeat(::grpc::ClientContext* context, const ::csvservice::HeartbeatRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::HeartbeatResponse>>(AsyncHeartbeatRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::HeartbeatResponse>> PrepareAsyncHeartbeat(::grpc::ClientContext* context, const ::csvservice::HeartbeatRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::HeartbeatResponse>>(PrepareAsyncHeartbeatRaw(context, request, cq));
+    }
+    // Internal RPC used by the leader to replicate an upload to peers
+    virtual ::grpc::Status ReplicateUpload(::grpc::ClientContext* context, const ::csvservice::CsvUploadRequest& request, ::csvservice::ReplicateUploadResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ReplicateUploadResponse>> AsyncReplicateUpload(::grpc::ClientContext* context, const ::csvservice::CsvUploadRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ReplicateUploadResponse>>(AsyncReplicateUploadRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ReplicateUploadResponse>> PrepareAsyncReplicateUpload(::grpc::ClientContext* context, const ::csvservice::CsvUploadRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ReplicateUploadResponse>>(PrepareAsyncReplicateUploadRaw(context, request, cq));
+    }
+    // Internal RPC used by the leader to replicate a mutation to peers
+    virtual ::grpc::Status ApplyMutation(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest& request, ::csvservice::ReplicateMutationResponse* response) = 0;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ReplicateMutationResponse>> AsyncApplyMutation(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ReplicateMutationResponse>>(AsyncApplyMutationRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ReplicateMutationResponse>> PrepareAsyncApplyMutation(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ReplicateMutationResponse>>(PrepareAsyncApplyMutationRaw(context, request, cq));
+    }
     class async_interface {
      public:
       virtual ~async_interface() {}
@@ -108,6 +146,19 @@ class CsvService final {
       virtual void InsertRow(::grpc::ClientContext* context, const ::csvservice::InsertRowRequest* request, ::csvservice::ModificationResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
       virtual void DeleteRow(::grpc::ClientContext* context, const ::csvservice::DeleteRowRequest* request, ::csvservice::ModificationResponse* response, std::function<void(::grpc::Status)>) = 0;
       virtual void DeleteRow(::grpc::ClientContext* context, const ::csvservice::DeleteRowRequest* request, ::csvservice::ModificationResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Fault tolerance and cluster management
+      virtual void GetClusterStatus(::grpc::ClientContext* context, const ::csvservice::Empty* request, ::csvservice::ClusterStatusResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void GetClusterStatus(::grpc::ClientContext* context, const ::csvservice::Empty* request, ::csvservice::ClusterStatusResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      virtual void RegisterPeer(::grpc::ClientContext* context, const ::csvservice::RegisterPeerRequest* request, ::csvservice::RegisterPeerResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void RegisterPeer(::grpc::ClientContext* context, const ::csvservice::RegisterPeerRequest* request, ::csvservice::RegisterPeerResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      virtual void Heartbeat(::grpc::ClientContext* context, const ::csvservice::HeartbeatRequest* request, ::csvservice::HeartbeatResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void Heartbeat(::grpc::ClientContext* context, const ::csvservice::HeartbeatRequest* request, ::csvservice::HeartbeatResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Internal RPC used by the leader to replicate an upload to peers
+      virtual void ReplicateUpload(::grpc::ClientContext* context, const ::csvservice::CsvUploadRequest* request, ::csvservice::ReplicateUploadResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void ReplicateUpload(::grpc::ClientContext* context, const ::csvservice::CsvUploadRequest* request, ::csvservice::ReplicateUploadResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
+      // Internal RPC used by the leader to replicate a mutation to peers
+      virtual void ApplyMutation(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest* request, ::csvservice::ReplicateMutationResponse* response, std::function<void(::grpc::Status)>) = 0;
+      virtual void ApplyMutation(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest* request, ::csvservice::ReplicateMutationResponse* response, ::grpc::ClientUnaryReactor* reactor) = 0;
     };
     typedef class async_interface experimental_async_interface;
     virtual class async_interface* async() { return nullptr; }
@@ -127,6 +178,16 @@ class CsvService final {
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ModificationResponse>* PrepareAsyncInsertRowRaw(::grpc::ClientContext* context, const ::csvservice::InsertRowRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ModificationResponse>* AsyncDeleteRowRaw(::grpc::ClientContext* context, const ::csvservice::DeleteRowRequest& request, ::grpc::CompletionQueue* cq) = 0;
     virtual ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ModificationResponse>* PrepareAsyncDeleteRowRaw(::grpc::ClientContext* context, const ::csvservice::DeleteRowRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ClusterStatusResponse>* AsyncGetClusterStatusRaw(::grpc::ClientContext* context, const ::csvservice::Empty& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ClusterStatusResponse>* PrepareAsyncGetClusterStatusRaw(::grpc::ClientContext* context, const ::csvservice::Empty& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::RegisterPeerResponse>* AsyncRegisterPeerRaw(::grpc::ClientContext* context, const ::csvservice::RegisterPeerRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::RegisterPeerResponse>* PrepareAsyncRegisterPeerRaw(::grpc::ClientContext* context, const ::csvservice::RegisterPeerRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::HeartbeatResponse>* AsyncHeartbeatRaw(::grpc::ClientContext* context, const ::csvservice::HeartbeatRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::HeartbeatResponse>* PrepareAsyncHeartbeatRaw(::grpc::ClientContext* context, const ::csvservice::HeartbeatRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ReplicateUploadResponse>* AsyncReplicateUploadRaw(::grpc::ClientContext* context, const ::csvservice::CsvUploadRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ReplicateUploadResponse>* PrepareAsyncReplicateUploadRaw(::grpc::ClientContext* context, const ::csvservice::CsvUploadRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ReplicateMutationResponse>* AsyncApplyMutationRaw(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest& request, ::grpc::CompletionQueue* cq) = 0;
+    virtual ::grpc::ClientAsyncResponseReaderInterface< ::csvservice::ReplicateMutationResponse>* PrepareAsyncApplyMutationRaw(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest& request, ::grpc::CompletionQueue* cq) = 0;
   };
   class Stub final : public StubInterface {
    public:
@@ -180,6 +241,41 @@ class CsvService final {
     std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::ModificationResponse>> PrepareAsyncDeleteRow(::grpc::ClientContext* context, const ::csvservice::DeleteRowRequest& request, ::grpc::CompletionQueue* cq) {
       return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::ModificationResponse>>(PrepareAsyncDeleteRowRaw(context, request, cq));
     }
+    ::grpc::Status GetClusterStatus(::grpc::ClientContext* context, const ::csvservice::Empty& request, ::csvservice::ClusterStatusResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::ClusterStatusResponse>> AsyncGetClusterStatus(::grpc::ClientContext* context, const ::csvservice::Empty& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::ClusterStatusResponse>>(AsyncGetClusterStatusRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::ClusterStatusResponse>> PrepareAsyncGetClusterStatus(::grpc::ClientContext* context, const ::csvservice::Empty& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::ClusterStatusResponse>>(PrepareAsyncGetClusterStatusRaw(context, request, cq));
+    }
+    ::grpc::Status RegisterPeer(::grpc::ClientContext* context, const ::csvservice::RegisterPeerRequest& request, ::csvservice::RegisterPeerResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::RegisterPeerResponse>> AsyncRegisterPeer(::grpc::ClientContext* context, const ::csvservice::RegisterPeerRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::RegisterPeerResponse>>(AsyncRegisterPeerRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::RegisterPeerResponse>> PrepareAsyncRegisterPeer(::grpc::ClientContext* context, const ::csvservice::RegisterPeerRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::RegisterPeerResponse>>(PrepareAsyncRegisterPeerRaw(context, request, cq));
+    }
+    ::grpc::Status Heartbeat(::grpc::ClientContext* context, const ::csvservice::HeartbeatRequest& request, ::csvservice::HeartbeatResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::HeartbeatResponse>> AsyncHeartbeat(::grpc::ClientContext* context, const ::csvservice::HeartbeatRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::HeartbeatResponse>>(AsyncHeartbeatRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::HeartbeatResponse>> PrepareAsyncHeartbeat(::grpc::ClientContext* context, const ::csvservice::HeartbeatRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::HeartbeatResponse>>(PrepareAsyncHeartbeatRaw(context, request, cq));
+    }
+    ::grpc::Status ReplicateUpload(::grpc::ClientContext* context, const ::csvservice::CsvUploadRequest& request, ::csvservice::ReplicateUploadResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::ReplicateUploadResponse>> AsyncReplicateUpload(::grpc::ClientContext* context, const ::csvservice::CsvUploadRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::ReplicateUploadResponse>>(AsyncReplicateUploadRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::ReplicateUploadResponse>> PrepareAsyncReplicateUpload(::grpc::ClientContext* context, const ::csvservice::CsvUploadRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::ReplicateUploadResponse>>(PrepareAsyncReplicateUploadRaw(context, request, cq));
+    }
+    ::grpc::Status ApplyMutation(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest& request, ::csvservice::ReplicateMutationResponse* response) override;
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::ReplicateMutationResponse>> AsyncApplyMutation(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::ReplicateMutationResponse>>(AsyncApplyMutationRaw(context, request, cq));
+    }
+    std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::ReplicateMutationResponse>> PrepareAsyncApplyMutation(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest& request, ::grpc::CompletionQueue* cq) {
+      return std::unique_ptr< ::grpc::ClientAsyncResponseReader< ::csvservice::ReplicateMutationResponse>>(PrepareAsyncApplyMutationRaw(context, request, cq));
+    }
     class async final :
       public StubInterface::async_interface {
      public:
@@ -197,6 +293,16 @@ class CsvService final {
       void InsertRow(::grpc::ClientContext* context, const ::csvservice::InsertRowRequest* request, ::csvservice::ModificationResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
       void DeleteRow(::grpc::ClientContext* context, const ::csvservice::DeleteRowRequest* request, ::csvservice::ModificationResponse* response, std::function<void(::grpc::Status)>) override;
       void DeleteRow(::grpc::ClientContext* context, const ::csvservice::DeleteRowRequest* request, ::csvservice::ModificationResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void GetClusterStatus(::grpc::ClientContext* context, const ::csvservice::Empty* request, ::csvservice::ClusterStatusResponse* response, std::function<void(::grpc::Status)>) override;
+      void GetClusterStatus(::grpc::ClientContext* context, const ::csvservice::Empty* request, ::csvservice::ClusterStatusResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void RegisterPeer(::grpc::ClientContext* context, const ::csvservice::RegisterPeerRequest* request, ::csvservice::RegisterPeerResponse* response, std::function<void(::grpc::Status)>) override;
+      void RegisterPeer(::grpc::ClientContext* context, const ::csvservice::RegisterPeerRequest* request, ::csvservice::RegisterPeerResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void Heartbeat(::grpc::ClientContext* context, const ::csvservice::HeartbeatRequest* request, ::csvservice::HeartbeatResponse* response, std::function<void(::grpc::Status)>) override;
+      void Heartbeat(::grpc::ClientContext* context, const ::csvservice::HeartbeatRequest* request, ::csvservice::HeartbeatResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void ReplicateUpload(::grpc::ClientContext* context, const ::csvservice::CsvUploadRequest* request, ::csvservice::ReplicateUploadResponse* response, std::function<void(::grpc::Status)>) override;
+      void ReplicateUpload(::grpc::ClientContext* context, const ::csvservice::CsvUploadRequest* request, ::csvservice::ReplicateUploadResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
+      void ApplyMutation(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest* request, ::csvservice::ReplicateMutationResponse* response, std::function<void(::grpc::Status)>) override;
+      void ApplyMutation(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest* request, ::csvservice::ReplicateMutationResponse* response, ::grpc::ClientUnaryReactor* reactor) override;
      private:
       friend class Stub;
       explicit async(Stub* stub): stub_(stub) { }
@@ -222,6 +328,16 @@ class CsvService final {
     ::grpc::ClientAsyncResponseReader< ::csvservice::ModificationResponse>* PrepareAsyncInsertRowRaw(::grpc::ClientContext* context, const ::csvservice::InsertRowRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::csvservice::ModificationResponse>* AsyncDeleteRowRaw(::grpc::ClientContext* context, const ::csvservice::DeleteRowRequest& request, ::grpc::CompletionQueue* cq) override;
     ::grpc::ClientAsyncResponseReader< ::csvservice::ModificationResponse>* PrepareAsyncDeleteRowRaw(::grpc::ClientContext* context, const ::csvservice::DeleteRowRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::csvservice::ClusterStatusResponse>* AsyncGetClusterStatusRaw(::grpc::ClientContext* context, const ::csvservice::Empty& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::csvservice::ClusterStatusResponse>* PrepareAsyncGetClusterStatusRaw(::grpc::ClientContext* context, const ::csvservice::Empty& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::csvservice::RegisterPeerResponse>* AsyncRegisterPeerRaw(::grpc::ClientContext* context, const ::csvservice::RegisterPeerRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::csvservice::RegisterPeerResponse>* PrepareAsyncRegisterPeerRaw(::grpc::ClientContext* context, const ::csvservice::RegisterPeerRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::csvservice::HeartbeatResponse>* AsyncHeartbeatRaw(::grpc::ClientContext* context, const ::csvservice::HeartbeatRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::csvservice::HeartbeatResponse>* PrepareAsyncHeartbeatRaw(::grpc::ClientContext* context, const ::csvservice::HeartbeatRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::csvservice::ReplicateUploadResponse>* AsyncReplicateUploadRaw(::grpc::ClientContext* context, const ::csvservice::CsvUploadRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::csvservice::ReplicateUploadResponse>* PrepareAsyncReplicateUploadRaw(::grpc::ClientContext* context, const ::csvservice::CsvUploadRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::csvservice::ReplicateMutationResponse>* AsyncApplyMutationRaw(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest& request, ::grpc::CompletionQueue* cq) override;
+    ::grpc::ClientAsyncResponseReader< ::csvservice::ReplicateMutationResponse>* PrepareAsyncApplyMutationRaw(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest& request, ::grpc::CompletionQueue* cq) override;
     const ::grpc::internal::RpcMethod rpcmethod_UploadCsv_;
     const ::grpc::internal::RpcMethod rpcmethod_ListLoadedFiles_;
     const ::grpc::internal::RpcMethod rpcmethod_ViewFile_;
@@ -229,6 +345,11 @@ class CsvService final {
     const ::grpc::internal::RpcMethod rpcmethod_ComputeAverage_;
     const ::grpc::internal::RpcMethod rpcmethod_InsertRow_;
     const ::grpc::internal::RpcMethod rpcmethod_DeleteRow_;
+    const ::grpc::internal::RpcMethod rpcmethod_GetClusterStatus_;
+    const ::grpc::internal::RpcMethod rpcmethod_RegisterPeer_;
+    const ::grpc::internal::RpcMethod rpcmethod_Heartbeat_;
+    const ::grpc::internal::RpcMethod rpcmethod_ReplicateUpload_;
+    const ::grpc::internal::RpcMethod rpcmethod_ApplyMutation_;
   };
   static std::unique_ptr<Stub> NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options = ::grpc::StubOptions());
 
@@ -245,6 +366,14 @@ class CsvService final {
     virtual ::grpc::Status ComputeAverage(::grpc::ServerContext* context, const ::csvservice::ColumnOperationRequest* request, ::csvservice::NumericResponse* response);
     virtual ::grpc::Status InsertRow(::grpc::ServerContext* context, const ::csvservice::InsertRowRequest* request, ::csvservice::ModificationResponse* response);
     virtual ::grpc::Status DeleteRow(::grpc::ServerContext* context, const ::csvservice::DeleteRowRequest* request, ::csvservice::ModificationResponse* response);
+    // Fault tolerance and cluster management
+    virtual ::grpc::Status GetClusterStatus(::grpc::ServerContext* context, const ::csvservice::Empty* request, ::csvservice::ClusterStatusResponse* response);
+    virtual ::grpc::Status RegisterPeer(::grpc::ServerContext* context, const ::csvservice::RegisterPeerRequest* request, ::csvservice::RegisterPeerResponse* response);
+    virtual ::grpc::Status Heartbeat(::grpc::ServerContext* context, const ::csvservice::HeartbeatRequest* request, ::csvservice::HeartbeatResponse* response);
+    // Internal RPC used by the leader to replicate an upload to peers
+    virtual ::grpc::Status ReplicateUpload(::grpc::ServerContext* context, const ::csvservice::CsvUploadRequest* request, ::csvservice::ReplicateUploadResponse* response);
+    // Internal RPC used by the leader to replicate a mutation to peers
+    virtual ::grpc::Status ApplyMutation(::grpc::ServerContext* context, const ::csvservice::ReplicateMutationRequest* request, ::csvservice::ReplicateMutationResponse* response);
   };
   template <class BaseClass>
   class WithAsyncMethod_UploadCsv : public BaseClass {
@@ -386,7 +515,107 @@ class CsvService final {
       ::grpc::Service::RequestAsyncUnary(6, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
-  typedef WithAsyncMethod_UploadCsv<WithAsyncMethod_ListLoadedFiles<WithAsyncMethod_ViewFile<WithAsyncMethod_ComputeSum<WithAsyncMethod_ComputeAverage<WithAsyncMethod_InsertRow<WithAsyncMethod_DeleteRow<Service > > > > > > > AsyncService;
+  template <class BaseClass>
+  class WithAsyncMethod_GetClusterStatus : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_GetClusterStatus() {
+      ::grpc::Service::MarkMethodAsync(7);
+    }
+    ~WithAsyncMethod_GetClusterStatus() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetClusterStatus(::grpc::ServerContext* /*context*/, const ::csvservice::Empty* /*request*/, ::csvservice::ClusterStatusResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGetClusterStatus(::grpc::ServerContext* context, ::csvservice::Empty* request, ::grpc::ServerAsyncResponseWriter< ::csvservice::ClusterStatusResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(7, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_RegisterPeer : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_RegisterPeer() {
+      ::grpc::Service::MarkMethodAsync(8);
+    }
+    ~WithAsyncMethod_RegisterPeer() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status RegisterPeer(::grpc::ServerContext* /*context*/, const ::csvservice::RegisterPeerRequest* /*request*/, ::csvservice::RegisterPeerResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestRegisterPeer(::grpc::ServerContext* context, ::csvservice::RegisterPeerRequest* request, ::grpc::ServerAsyncResponseWriter< ::csvservice::RegisterPeerResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(8, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_Heartbeat : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_Heartbeat() {
+      ::grpc::Service::MarkMethodAsync(9);
+    }
+    ~WithAsyncMethod_Heartbeat() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status Heartbeat(::grpc::ServerContext* /*context*/, const ::csvservice::HeartbeatRequest* /*request*/, ::csvservice::HeartbeatResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestHeartbeat(::grpc::ServerContext* context, ::csvservice::HeartbeatRequest* request, ::grpc::ServerAsyncResponseWriter< ::csvservice::HeartbeatResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(9, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_ReplicateUpload : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_ReplicateUpload() {
+      ::grpc::Service::MarkMethodAsync(10);
+    }
+    ~WithAsyncMethod_ReplicateUpload() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ReplicateUpload(::grpc::ServerContext* /*context*/, const ::csvservice::CsvUploadRequest* /*request*/, ::csvservice::ReplicateUploadResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestReplicateUpload(::grpc::ServerContext* context, ::csvservice::CsvUploadRequest* request, ::grpc::ServerAsyncResponseWriter< ::csvservice::ReplicateUploadResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(10, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithAsyncMethod_ApplyMutation : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithAsyncMethod_ApplyMutation() {
+      ::grpc::Service::MarkMethodAsync(11);
+    }
+    ~WithAsyncMethod_ApplyMutation() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ApplyMutation(::grpc::ServerContext* /*context*/, const ::csvservice::ReplicateMutationRequest* /*request*/, ::csvservice::ReplicateMutationResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestApplyMutation(::grpc::ServerContext* context, ::csvservice::ReplicateMutationRequest* request, ::grpc::ServerAsyncResponseWriter< ::csvservice::ReplicateMutationResponse>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(11, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  typedef WithAsyncMethod_UploadCsv<WithAsyncMethod_ListLoadedFiles<WithAsyncMethod_ViewFile<WithAsyncMethod_ComputeSum<WithAsyncMethod_ComputeAverage<WithAsyncMethod_InsertRow<WithAsyncMethod_DeleteRow<WithAsyncMethod_GetClusterStatus<WithAsyncMethod_RegisterPeer<WithAsyncMethod_Heartbeat<WithAsyncMethod_ReplicateUpload<WithAsyncMethod_ApplyMutation<Service > > > > > > > > > > > > AsyncService;
   template <class BaseClass>
   class WithCallbackMethod_UploadCsv : public BaseClass {
    private:
@@ -576,7 +805,142 @@ class CsvService final {
     virtual ::grpc::ServerUnaryReactor* DeleteRow(
       ::grpc::CallbackServerContext* /*context*/, const ::csvservice::DeleteRowRequest* /*request*/, ::csvservice::ModificationResponse* /*response*/)  { return nullptr; }
   };
-  typedef WithCallbackMethod_UploadCsv<WithCallbackMethod_ListLoadedFiles<WithCallbackMethod_ViewFile<WithCallbackMethod_ComputeSum<WithCallbackMethod_ComputeAverage<WithCallbackMethod_InsertRow<WithCallbackMethod_DeleteRow<Service > > > > > > > CallbackService;
+  template <class BaseClass>
+  class WithCallbackMethod_GetClusterStatus : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_GetClusterStatus() {
+      ::grpc::Service::MarkMethodCallback(7,
+          new ::grpc::internal::CallbackUnaryHandler< ::csvservice::Empty, ::csvservice::ClusterStatusResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::csvservice::Empty* request, ::csvservice::ClusterStatusResponse* response) { return this->GetClusterStatus(context, request, response); }));}
+    void SetMessageAllocatorFor_GetClusterStatus(
+        ::grpc::MessageAllocator< ::csvservice::Empty, ::csvservice::ClusterStatusResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(7);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::csvservice::Empty, ::csvservice::ClusterStatusResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_GetClusterStatus() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetClusterStatus(::grpc::ServerContext* /*context*/, const ::csvservice::Empty* /*request*/, ::csvservice::ClusterStatusResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GetClusterStatus(
+      ::grpc::CallbackServerContext* /*context*/, const ::csvservice::Empty* /*request*/, ::csvservice::ClusterStatusResponse* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithCallbackMethod_RegisterPeer : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_RegisterPeer() {
+      ::grpc::Service::MarkMethodCallback(8,
+          new ::grpc::internal::CallbackUnaryHandler< ::csvservice::RegisterPeerRequest, ::csvservice::RegisterPeerResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::csvservice::RegisterPeerRequest* request, ::csvservice::RegisterPeerResponse* response) { return this->RegisterPeer(context, request, response); }));}
+    void SetMessageAllocatorFor_RegisterPeer(
+        ::grpc::MessageAllocator< ::csvservice::RegisterPeerRequest, ::csvservice::RegisterPeerResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(8);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::csvservice::RegisterPeerRequest, ::csvservice::RegisterPeerResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_RegisterPeer() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status RegisterPeer(::grpc::ServerContext* /*context*/, const ::csvservice::RegisterPeerRequest* /*request*/, ::csvservice::RegisterPeerResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* RegisterPeer(
+      ::grpc::CallbackServerContext* /*context*/, const ::csvservice::RegisterPeerRequest* /*request*/, ::csvservice::RegisterPeerResponse* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithCallbackMethod_Heartbeat : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_Heartbeat() {
+      ::grpc::Service::MarkMethodCallback(9,
+          new ::grpc::internal::CallbackUnaryHandler< ::csvservice::HeartbeatRequest, ::csvservice::HeartbeatResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::csvservice::HeartbeatRequest* request, ::csvservice::HeartbeatResponse* response) { return this->Heartbeat(context, request, response); }));}
+    void SetMessageAllocatorFor_Heartbeat(
+        ::grpc::MessageAllocator< ::csvservice::HeartbeatRequest, ::csvservice::HeartbeatResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(9);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::csvservice::HeartbeatRequest, ::csvservice::HeartbeatResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_Heartbeat() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status Heartbeat(::grpc::ServerContext* /*context*/, const ::csvservice::HeartbeatRequest* /*request*/, ::csvservice::HeartbeatResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* Heartbeat(
+      ::grpc::CallbackServerContext* /*context*/, const ::csvservice::HeartbeatRequest* /*request*/, ::csvservice::HeartbeatResponse* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithCallbackMethod_ReplicateUpload : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_ReplicateUpload() {
+      ::grpc::Service::MarkMethodCallback(10,
+          new ::grpc::internal::CallbackUnaryHandler< ::csvservice::CsvUploadRequest, ::csvservice::ReplicateUploadResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::csvservice::CsvUploadRequest* request, ::csvservice::ReplicateUploadResponse* response) { return this->ReplicateUpload(context, request, response); }));}
+    void SetMessageAllocatorFor_ReplicateUpload(
+        ::grpc::MessageAllocator< ::csvservice::CsvUploadRequest, ::csvservice::ReplicateUploadResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(10);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::csvservice::CsvUploadRequest, ::csvservice::ReplicateUploadResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_ReplicateUpload() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ReplicateUpload(::grpc::ServerContext* /*context*/, const ::csvservice::CsvUploadRequest* /*request*/, ::csvservice::ReplicateUploadResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* ReplicateUpload(
+      ::grpc::CallbackServerContext* /*context*/, const ::csvservice::CsvUploadRequest* /*request*/, ::csvservice::ReplicateUploadResponse* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithCallbackMethod_ApplyMutation : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithCallbackMethod_ApplyMutation() {
+      ::grpc::Service::MarkMethodCallback(11,
+          new ::grpc::internal::CallbackUnaryHandler< ::csvservice::ReplicateMutationRequest, ::csvservice::ReplicateMutationResponse>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::csvservice::ReplicateMutationRequest* request, ::csvservice::ReplicateMutationResponse* response) { return this->ApplyMutation(context, request, response); }));}
+    void SetMessageAllocatorFor_ApplyMutation(
+        ::grpc::MessageAllocator< ::csvservice::ReplicateMutationRequest, ::csvservice::ReplicateMutationResponse>* allocator) {
+      ::grpc::internal::MethodHandler* const handler = ::grpc::Service::GetHandler(11);
+      static_cast<::grpc::internal::CallbackUnaryHandler< ::csvservice::ReplicateMutationRequest, ::csvservice::ReplicateMutationResponse>*>(handler)
+              ->SetMessageAllocator(allocator);
+    }
+    ~WithCallbackMethod_ApplyMutation() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ApplyMutation(::grpc::ServerContext* /*context*/, const ::csvservice::ReplicateMutationRequest* /*request*/, ::csvservice::ReplicateMutationResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* ApplyMutation(
+      ::grpc::CallbackServerContext* /*context*/, const ::csvservice::ReplicateMutationRequest* /*request*/, ::csvservice::ReplicateMutationResponse* /*response*/)  { return nullptr; }
+  };
+  typedef WithCallbackMethod_UploadCsv<WithCallbackMethod_ListLoadedFiles<WithCallbackMethod_ViewFile<WithCallbackMethod_ComputeSum<WithCallbackMethod_ComputeAverage<WithCallbackMethod_InsertRow<WithCallbackMethod_DeleteRow<WithCallbackMethod_GetClusterStatus<WithCallbackMethod_RegisterPeer<WithCallbackMethod_Heartbeat<WithCallbackMethod_ReplicateUpload<WithCallbackMethod_ApplyMutation<Service > > > > > > > > > > > > CallbackService;
   typedef CallbackService ExperimentalCallbackService;
   template <class BaseClass>
   class WithGenericMethod_UploadCsv : public BaseClass {
@@ -693,6 +1057,91 @@ class CsvService final {
     }
     // disable synchronous version of this method
     ::grpc::Status DeleteRow(::grpc::ServerContext* /*context*/, const ::csvservice::DeleteRowRequest* /*request*/, ::csvservice::ModificationResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_GetClusterStatus : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_GetClusterStatus() {
+      ::grpc::Service::MarkMethodGeneric(7);
+    }
+    ~WithGenericMethod_GetClusterStatus() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetClusterStatus(::grpc::ServerContext* /*context*/, const ::csvservice::Empty* /*request*/, ::csvservice::ClusterStatusResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_RegisterPeer : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_RegisterPeer() {
+      ::grpc::Service::MarkMethodGeneric(8);
+    }
+    ~WithGenericMethod_RegisterPeer() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status RegisterPeer(::grpc::ServerContext* /*context*/, const ::csvservice::RegisterPeerRequest* /*request*/, ::csvservice::RegisterPeerResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_Heartbeat : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_Heartbeat() {
+      ::grpc::Service::MarkMethodGeneric(9);
+    }
+    ~WithGenericMethod_Heartbeat() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status Heartbeat(::grpc::ServerContext* /*context*/, const ::csvservice::HeartbeatRequest* /*request*/, ::csvservice::HeartbeatResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_ReplicateUpload : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_ReplicateUpload() {
+      ::grpc::Service::MarkMethodGeneric(10);
+    }
+    ~WithGenericMethod_ReplicateUpload() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ReplicateUpload(::grpc::ServerContext* /*context*/, const ::csvservice::CsvUploadRequest* /*request*/, ::csvservice::ReplicateUploadResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+  };
+  template <class BaseClass>
+  class WithGenericMethod_ApplyMutation : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithGenericMethod_ApplyMutation() {
+      ::grpc::Service::MarkMethodGeneric(11);
+    }
+    ~WithGenericMethod_ApplyMutation() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ApplyMutation(::grpc::ServerContext* /*context*/, const ::csvservice::ReplicateMutationRequest* /*request*/, ::csvservice::ReplicateMutationResponse* /*response*/) override {
       abort();
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
@@ -835,6 +1284,106 @@ class CsvService final {
     }
     void RequestDeleteRow(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
       ::grpc::Service::RequestAsyncUnary(6, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_GetClusterStatus : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_GetClusterStatus() {
+      ::grpc::Service::MarkMethodRaw(7);
+    }
+    ~WithRawMethod_GetClusterStatus() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetClusterStatus(::grpc::ServerContext* /*context*/, const ::csvservice::Empty* /*request*/, ::csvservice::ClusterStatusResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestGetClusterStatus(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(7, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_RegisterPeer : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_RegisterPeer() {
+      ::grpc::Service::MarkMethodRaw(8);
+    }
+    ~WithRawMethod_RegisterPeer() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status RegisterPeer(::grpc::ServerContext* /*context*/, const ::csvservice::RegisterPeerRequest* /*request*/, ::csvservice::RegisterPeerResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestRegisterPeer(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(8, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_Heartbeat : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_Heartbeat() {
+      ::grpc::Service::MarkMethodRaw(9);
+    }
+    ~WithRawMethod_Heartbeat() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status Heartbeat(::grpc::ServerContext* /*context*/, const ::csvservice::HeartbeatRequest* /*request*/, ::csvservice::HeartbeatResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestHeartbeat(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(9, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_ReplicateUpload : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_ReplicateUpload() {
+      ::grpc::Service::MarkMethodRaw(10);
+    }
+    ~WithRawMethod_ReplicateUpload() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ReplicateUpload(::grpc::ServerContext* /*context*/, const ::csvservice::CsvUploadRequest* /*request*/, ::csvservice::ReplicateUploadResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestReplicateUpload(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(10, context, request, response, new_call_cq, notification_cq, tag);
+    }
+  };
+  template <class BaseClass>
+  class WithRawMethod_ApplyMutation : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawMethod_ApplyMutation() {
+      ::grpc::Service::MarkMethodRaw(11);
+    }
+    ~WithRawMethod_ApplyMutation() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ApplyMutation(::grpc::ServerContext* /*context*/, const ::csvservice::ReplicateMutationRequest* /*request*/, ::csvservice::ReplicateMutationResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    void RequestApplyMutation(::grpc::ServerContext* context, ::grpc::ByteBuffer* request, ::grpc::ServerAsyncResponseWriter< ::grpc::ByteBuffer>* response, ::grpc::CompletionQueue* new_call_cq, ::grpc::ServerCompletionQueue* notification_cq, void *tag) {
+      ::grpc::Service::RequestAsyncUnary(11, context, request, response, new_call_cq, notification_cq, tag);
     }
   };
   template <class BaseClass>
@@ -989,6 +1538,116 @@ class CsvService final {
       return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
     }
     virtual ::grpc::ServerUnaryReactor* DeleteRow(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_GetClusterStatus : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_GetClusterStatus() {
+      ::grpc::Service::MarkMethodRawCallback(7,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->GetClusterStatus(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_GetClusterStatus() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status GetClusterStatus(::grpc::ServerContext* /*context*/, const ::csvservice::Empty* /*request*/, ::csvservice::ClusterStatusResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* GetClusterStatus(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_RegisterPeer : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_RegisterPeer() {
+      ::grpc::Service::MarkMethodRawCallback(8,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->RegisterPeer(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_RegisterPeer() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status RegisterPeer(::grpc::ServerContext* /*context*/, const ::csvservice::RegisterPeerRequest* /*request*/, ::csvservice::RegisterPeerResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* RegisterPeer(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_Heartbeat : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_Heartbeat() {
+      ::grpc::Service::MarkMethodRawCallback(9,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->Heartbeat(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_Heartbeat() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status Heartbeat(::grpc::ServerContext* /*context*/, const ::csvservice::HeartbeatRequest* /*request*/, ::csvservice::HeartbeatResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* Heartbeat(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_ReplicateUpload : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_ReplicateUpload() {
+      ::grpc::Service::MarkMethodRawCallback(10,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->ReplicateUpload(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_ReplicateUpload() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ReplicateUpload(::grpc::ServerContext* /*context*/, const ::csvservice::CsvUploadRequest* /*request*/, ::csvservice::ReplicateUploadResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* ReplicateUpload(
+      ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
+  };
+  template <class BaseClass>
+  class WithRawCallbackMethod_ApplyMutation : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithRawCallbackMethod_ApplyMutation() {
+      ::grpc::Service::MarkMethodRawCallback(11,
+          new ::grpc::internal::CallbackUnaryHandler< ::grpc::ByteBuffer, ::grpc::ByteBuffer>(
+            [this](
+                   ::grpc::CallbackServerContext* context, const ::grpc::ByteBuffer* request, ::grpc::ByteBuffer* response) { return this->ApplyMutation(context, request, response); }));
+    }
+    ~WithRawCallbackMethod_ApplyMutation() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable synchronous version of this method
+    ::grpc::Status ApplyMutation(::grpc::ServerContext* /*context*/, const ::csvservice::ReplicateMutationRequest* /*request*/, ::csvservice::ReplicateMutationResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    virtual ::grpc::ServerUnaryReactor* ApplyMutation(
       ::grpc::CallbackServerContext* /*context*/, const ::grpc::ByteBuffer* /*request*/, ::grpc::ByteBuffer* /*response*/)  { return nullptr; }
   };
   template <class BaseClass>
@@ -1180,9 +1839,144 @@ class CsvService final {
     // replace default version of method with streamed unary
     virtual ::grpc::Status StreamedDeleteRow(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::csvservice::DeleteRowRequest,::csvservice::ModificationResponse>* server_unary_streamer) = 0;
   };
-  typedef WithStreamedUnaryMethod_UploadCsv<WithStreamedUnaryMethod_ListLoadedFiles<WithStreamedUnaryMethod_ViewFile<WithStreamedUnaryMethod_ComputeSum<WithStreamedUnaryMethod_ComputeAverage<WithStreamedUnaryMethod_InsertRow<WithStreamedUnaryMethod_DeleteRow<Service > > > > > > > StreamedUnaryService;
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_GetClusterStatus : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_GetClusterStatus() {
+      ::grpc::Service::MarkMethodStreamed(7,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::csvservice::Empty, ::csvservice::ClusterStatusResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::csvservice::Empty, ::csvservice::ClusterStatusResponse>* streamer) {
+                       return this->StreamedGetClusterStatus(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_GetClusterStatus() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status GetClusterStatus(::grpc::ServerContext* /*context*/, const ::csvservice::Empty* /*request*/, ::csvservice::ClusterStatusResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedGetClusterStatus(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::csvservice::Empty,::csvservice::ClusterStatusResponse>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_RegisterPeer : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_RegisterPeer() {
+      ::grpc::Service::MarkMethodStreamed(8,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::csvservice::RegisterPeerRequest, ::csvservice::RegisterPeerResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::csvservice::RegisterPeerRequest, ::csvservice::RegisterPeerResponse>* streamer) {
+                       return this->StreamedRegisterPeer(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_RegisterPeer() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status RegisterPeer(::grpc::ServerContext* /*context*/, const ::csvservice::RegisterPeerRequest* /*request*/, ::csvservice::RegisterPeerResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedRegisterPeer(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::csvservice::RegisterPeerRequest,::csvservice::RegisterPeerResponse>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_Heartbeat : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_Heartbeat() {
+      ::grpc::Service::MarkMethodStreamed(9,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::csvservice::HeartbeatRequest, ::csvservice::HeartbeatResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::csvservice::HeartbeatRequest, ::csvservice::HeartbeatResponse>* streamer) {
+                       return this->StreamedHeartbeat(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_Heartbeat() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status Heartbeat(::grpc::ServerContext* /*context*/, const ::csvservice::HeartbeatRequest* /*request*/, ::csvservice::HeartbeatResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedHeartbeat(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::csvservice::HeartbeatRequest,::csvservice::HeartbeatResponse>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_ReplicateUpload : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_ReplicateUpload() {
+      ::grpc::Service::MarkMethodStreamed(10,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::csvservice::CsvUploadRequest, ::csvservice::ReplicateUploadResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::csvservice::CsvUploadRequest, ::csvservice::ReplicateUploadResponse>* streamer) {
+                       return this->StreamedReplicateUpload(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_ReplicateUpload() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status ReplicateUpload(::grpc::ServerContext* /*context*/, const ::csvservice::CsvUploadRequest* /*request*/, ::csvservice::ReplicateUploadResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedReplicateUpload(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::csvservice::CsvUploadRequest,::csvservice::ReplicateUploadResponse>* server_unary_streamer) = 0;
+  };
+  template <class BaseClass>
+  class WithStreamedUnaryMethod_ApplyMutation : public BaseClass {
+   private:
+    void BaseClassMustBeDerivedFromService(const Service* /*service*/) {}
+   public:
+    WithStreamedUnaryMethod_ApplyMutation() {
+      ::grpc::Service::MarkMethodStreamed(11,
+        new ::grpc::internal::StreamedUnaryHandler<
+          ::csvservice::ReplicateMutationRequest, ::csvservice::ReplicateMutationResponse>(
+            [this](::grpc::ServerContext* context,
+                   ::grpc::ServerUnaryStreamer<
+                     ::csvservice::ReplicateMutationRequest, ::csvservice::ReplicateMutationResponse>* streamer) {
+                       return this->StreamedApplyMutation(context,
+                         streamer);
+                  }));
+    }
+    ~WithStreamedUnaryMethod_ApplyMutation() override {
+      BaseClassMustBeDerivedFromService(this);
+    }
+    // disable regular version of this method
+    ::grpc::Status ApplyMutation(::grpc::ServerContext* /*context*/, const ::csvservice::ReplicateMutationRequest* /*request*/, ::csvservice::ReplicateMutationResponse* /*response*/) override {
+      abort();
+      return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+    }
+    // replace default version of method with streamed unary
+    virtual ::grpc::Status StreamedApplyMutation(::grpc::ServerContext* context, ::grpc::ServerUnaryStreamer< ::csvservice::ReplicateMutationRequest,::csvservice::ReplicateMutationResponse>* server_unary_streamer) = 0;
+  };
+  typedef WithStreamedUnaryMethod_UploadCsv<WithStreamedUnaryMethod_ListLoadedFiles<WithStreamedUnaryMethod_ViewFile<WithStreamedUnaryMethod_ComputeSum<WithStreamedUnaryMethod_ComputeAverage<WithStreamedUnaryMethod_InsertRow<WithStreamedUnaryMethod_DeleteRow<WithStreamedUnaryMethod_GetClusterStatus<WithStreamedUnaryMethod_RegisterPeer<WithStreamedUnaryMethod_Heartbeat<WithStreamedUnaryMethod_ReplicateUpload<WithStreamedUnaryMethod_ApplyMutation<Service > > > > > > > > > > > > StreamedUnaryService;
   typedef Service SplitStreamedService;
-  typedef WithStreamedUnaryMethod_UploadCsv<WithStreamedUnaryMethod_ListLoadedFiles<WithStreamedUnaryMethod_ViewFile<WithStreamedUnaryMethod_ComputeSum<WithStreamedUnaryMethod_ComputeAverage<WithStreamedUnaryMethod_InsertRow<WithStreamedUnaryMethod_DeleteRow<Service > > > > > > > StreamedService;
+  typedef WithStreamedUnaryMethod_UploadCsv<WithStreamedUnaryMethod_ListLoadedFiles<WithStreamedUnaryMethod_ViewFile<WithStreamedUnaryMethod_ComputeSum<WithStreamedUnaryMethod_ComputeAverage<WithStreamedUnaryMethod_InsertRow<WithStreamedUnaryMethod_DeleteRow<WithStreamedUnaryMethod_GetClusterStatus<WithStreamedUnaryMethod_RegisterPeer<WithStreamedUnaryMethod_Heartbeat<WithStreamedUnaryMethod_ReplicateUpload<WithStreamedUnaryMethod_ApplyMutation<Service > > > > > > > > > > > > StreamedService;
 };
 
 }  // namespace csvservice

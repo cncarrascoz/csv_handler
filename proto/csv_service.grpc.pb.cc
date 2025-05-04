@@ -29,6 +29,11 @@ static const char* CsvService_method_names[] = {
   "/csvservice.CsvService/ComputeAverage",
   "/csvservice.CsvService/InsertRow",
   "/csvservice.CsvService/DeleteRow",
+  "/csvservice.CsvService/GetClusterStatus",
+  "/csvservice.CsvService/RegisterPeer",
+  "/csvservice.CsvService/Heartbeat",
+  "/csvservice.CsvService/ReplicateUpload",
+  "/csvservice.CsvService/ApplyMutation",
 };
 
 std::unique_ptr< CsvService::Stub> CsvService::NewStub(const std::shared_ptr< ::grpc::ChannelInterface>& channel, const ::grpc::StubOptions& options) {
@@ -45,6 +50,11 @@ CsvService::Stub::Stub(const std::shared_ptr< ::grpc::ChannelInterface>& channel
   , rpcmethod_ComputeAverage_(CsvService_method_names[4], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_InsertRow_(CsvService_method_names[5], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   , rpcmethod_DeleteRow_(CsvService_method_names[6], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_GetClusterStatus_(CsvService_method_names[7], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_RegisterPeer_(CsvService_method_names[8], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_Heartbeat_(CsvService_method_names[9], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_ReplicateUpload_(CsvService_method_names[10], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
+  , rpcmethod_ApplyMutation_(CsvService_method_names[11], options.suffix_for_stats(),::grpc::internal::RpcMethod::NORMAL_RPC, channel)
   {}
 
 ::grpc::Status CsvService::Stub::UploadCsv(::grpc::ClientContext* context, const ::csvservice::CsvUploadRequest& request, ::csvservice::CsvUploadResponse* response) {
@@ -208,6 +218,121 @@ void CsvService::Stub::async::DeleteRow(::grpc::ClientContext* context, const ::
   return result;
 }
 
+::grpc::Status CsvService::Stub::GetClusterStatus(::grpc::ClientContext* context, const ::csvservice::Empty& request, ::csvservice::ClusterStatusResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::csvservice::Empty, ::csvservice::ClusterStatusResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_GetClusterStatus_, context, request, response);
+}
+
+void CsvService::Stub::async::GetClusterStatus(::grpc::ClientContext* context, const ::csvservice::Empty* request, ::csvservice::ClusterStatusResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::csvservice::Empty, ::csvservice::ClusterStatusResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetClusterStatus_, context, request, response, std::move(f));
+}
+
+void CsvService::Stub::async::GetClusterStatus(::grpc::ClientContext* context, const ::csvservice::Empty* request, ::csvservice::ClusterStatusResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_GetClusterStatus_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::csvservice::ClusterStatusResponse>* CsvService::Stub::PrepareAsyncGetClusterStatusRaw(::grpc::ClientContext* context, const ::csvservice::Empty& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::csvservice::ClusterStatusResponse, ::csvservice::Empty, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_GetClusterStatus_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::csvservice::ClusterStatusResponse>* CsvService::Stub::AsyncGetClusterStatusRaw(::grpc::ClientContext* context, const ::csvservice::Empty& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncGetClusterStatusRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
+::grpc::Status CsvService::Stub::RegisterPeer(::grpc::ClientContext* context, const ::csvservice::RegisterPeerRequest& request, ::csvservice::RegisterPeerResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::csvservice::RegisterPeerRequest, ::csvservice::RegisterPeerResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_RegisterPeer_, context, request, response);
+}
+
+void CsvService::Stub::async::RegisterPeer(::grpc::ClientContext* context, const ::csvservice::RegisterPeerRequest* request, ::csvservice::RegisterPeerResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::csvservice::RegisterPeerRequest, ::csvservice::RegisterPeerResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_RegisterPeer_, context, request, response, std::move(f));
+}
+
+void CsvService::Stub::async::RegisterPeer(::grpc::ClientContext* context, const ::csvservice::RegisterPeerRequest* request, ::csvservice::RegisterPeerResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_RegisterPeer_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::csvservice::RegisterPeerResponse>* CsvService::Stub::PrepareAsyncRegisterPeerRaw(::grpc::ClientContext* context, const ::csvservice::RegisterPeerRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::csvservice::RegisterPeerResponse, ::csvservice::RegisterPeerRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_RegisterPeer_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::csvservice::RegisterPeerResponse>* CsvService::Stub::AsyncRegisterPeerRaw(::grpc::ClientContext* context, const ::csvservice::RegisterPeerRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncRegisterPeerRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
+::grpc::Status CsvService::Stub::Heartbeat(::grpc::ClientContext* context, const ::csvservice::HeartbeatRequest& request, ::csvservice::HeartbeatResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::csvservice::HeartbeatRequest, ::csvservice::HeartbeatResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_Heartbeat_, context, request, response);
+}
+
+void CsvService::Stub::async::Heartbeat(::grpc::ClientContext* context, const ::csvservice::HeartbeatRequest* request, ::csvservice::HeartbeatResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::csvservice::HeartbeatRequest, ::csvservice::HeartbeatResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_Heartbeat_, context, request, response, std::move(f));
+}
+
+void CsvService::Stub::async::Heartbeat(::grpc::ClientContext* context, const ::csvservice::HeartbeatRequest* request, ::csvservice::HeartbeatResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_Heartbeat_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::csvservice::HeartbeatResponse>* CsvService::Stub::PrepareAsyncHeartbeatRaw(::grpc::ClientContext* context, const ::csvservice::HeartbeatRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::csvservice::HeartbeatResponse, ::csvservice::HeartbeatRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_Heartbeat_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::csvservice::HeartbeatResponse>* CsvService::Stub::AsyncHeartbeatRaw(::grpc::ClientContext* context, const ::csvservice::HeartbeatRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncHeartbeatRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
+::grpc::Status CsvService::Stub::ReplicateUpload(::grpc::ClientContext* context, const ::csvservice::CsvUploadRequest& request, ::csvservice::ReplicateUploadResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::csvservice::CsvUploadRequest, ::csvservice::ReplicateUploadResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_ReplicateUpload_, context, request, response);
+}
+
+void CsvService::Stub::async::ReplicateUpload(::grpc::ClientContext* context, const ::csvservice::CsvUploadRequest* request, ::csvservice::ReplicateUploadResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::csvservice::CsvUploadRequest, ::csvservice::ReplicateUploadResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_ReplicateUpload_, context, request, response, std::move(f));
+}
+
+void CsvService::Stub::async::ReplicateUpload(::grpc::ClientContext* context, const ::csvservice::CsvUploadRequest* request, ::csvservice::ReplicateUploadResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_ReplicateUpload_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::csvservice::ReplicateUploadResponse>* CsvService::Stub::PrepareAsyncReplicateUploadRaw(::grpc::ClientContext* context, const ::csvservice::CsvUploadRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::csvservice::ReplicateUploadResponse, ::csvservice::CsvUploadRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_ReplicateUpload_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::csvservice::ReplicateUploadResponse>* CsvService::Stub::AsyncReplicateUploadRaw(::grpc::ClientContext* context, const ::csvservice::CsvUploadRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncReplicateUploadRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
+::grpc::Status CsvService::Stub::ApplyMutation(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest& request, ::csvservice::ReplicateMutationResponse* response) {
+  return ::grpc::internal::BlockingUnaryCall< ::csvservice::ReplicateMutationRequest, ::csvservice::ReplicateMutationResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), rpcmethod_ApplyMutation_, context, request, response);
+}
+
+void CsvService::Stub::async::ApplyMutation(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest* request, ::csvservice::ReplicateMutationResponse* response, std::function<void(::grpc::Status)> f) {
+  ::grpc::internal::CallbackUnaryCall< ::csvservice::ReplicateMutationRequest, ::csvservice::ReplicateMutationResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_ApplyMutation_, context, request, response, std::move(f));
+}
+
+void CsvService::Stub::async::ApplyMutation(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest* request, ::csvservice::ReplicateMutationResponse* response, ::grpc::ClientUnaryReactor* reactor) {
+  ::grpc::internal::ClientCallbackUnaryFactory::Create< ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(stub_->channel_.get(), stub_->rpcmethod_ApplyMutation_, context, request, response, reactor);
+}
+
+::grpc::ClientAsyncResponseReader< ::csvservice::ReplicateMutationResponse>* CsvService::Stub::PrepareAsyncApplyMutationRaw(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest& request, ::grpc::CompletionQueue* cq) {
+  return ::grpc::internal::ClientAsyncResponseReaderHelper::Create< ::csvservice::ReplicateMutationResponse, ::csvservice::ReplicateMutationRequest, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(channel_.get(), cq, rpcmethod_ApplyMutation_, context, request);
+}
+
+::grpc::ClientAsyncResponseReader< ::csvservice::ReplicateMutationResponse>* CsvService::Stub::AsyncApplyMutationRaw(::grpc::ClientContext* context, const ::csvservice::ReplicateMutationRequest& request, ::grpc::CompletionQueue* cq) {
+  auto* result =
+    this->PrepareAsyncApplyMutationRaw(context, request, cq);
+  result->StartCall();
+  return result;
+}
+
 CsvService::Service::Service() {
   AddMethod(new ::grpc::internal::RpcServiceMethod(
       CsvService_method_names[0],
@@ -279,6 +404,56 @@ CsvService::Service::Service() {
              ::csvservice::ModificationResponse* resp) {
                return service->DeleteRow(ctx, req, resp);
              }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      CsvService_method_names[7],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< CsvService::Service, ::csvservice::Empty, ::csvservice::ClusterStatusResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](CsvService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::csvservice::Empty* req,
+             ::csvservice::ClusterStatusResponse* resp) {
+               return service->GetClusterStatus(ctx, req, resp);
+             }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      CsvService_method_names[8],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< CsvService::Service, ::csvservice::RegisterPeerRequest, ::csvservice::RegisterPeerResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](CsvService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::csvservice::RegisterPeerRequest* req,
+             ::csvservice::RegisterPeerResponse* resp) {
+               return service->RegisterPeer(ctx, req, resp);
+             }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      CsvService_method_names[9],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< CsvService::Service, ::csvservice::HeartbeatRequest, ::csvservice::HeartbeatResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](CsvService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::csvservice::HeartbeatRequest* req,
+             ::csvservice::HeartbeatResponse* resp) {
+               return service->Heartbeat(ctx, req, resp);
+             }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      CsvService_method_names[10],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< CsvService::Service, ::csvservice::CsvUploadRequest, ::csvservice::ReplicateUploadResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](CsvService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::csvservice::CsvUploadRequest* req,
+             ::csvservice::ReplicateUploadResponse* resp) {
+               return service->ReplicateUpload(ctx, req, resp);
+             }, this)));
+  AddMethod(new ::grpc::internal::RpcServiceMethod(
+      CsvService_method_names[11],
+      ::grpc::internal::RpcMethod::NORMAL_RPC,
+      new ::grpc::internal::RpcMethodHandler< CsvService::Service, ::csvservice::ReplicateMutationRequest, ::csvservice::ReplicateMutationResponse, ::grpc::protobuf::MessageLite, ::grpc::protobuf::MessageLite>(
+          [](CsvService::Service* service,
+             ::grpc::ServerContext* ctx,
+             const ::csvservice::ReplicateMutationRequest* req,
+             ::csvservice::ReplicateMutationResponse* resp) {
+               return service->ApplyMutation(ctx, req, resp);
+             }, this)));
 }
 
 CsvService::Service::~Service() {
@@ -327,6 +502,41 @@ CsvService::Service::~Service() {
 }
 
 ::grpc::Status CsvService::Service::DeleteRow(::grpc::ServerContext* context, const ::csvservice::DeleteRowRequest* request, ::csvservice::ModificationResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status CsvService::Service::GetClusterStatus(::grpc::ServerContext* context, const ::csvservice::Empty* request, ::csvservice::ClusterStatusResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status CsvService::Service::RegisterPeer(::grpc::ServerContext* context, const ::csvservice::RegisterPeerRequest* request, ::csvservice::RegisterPeerResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status CsvService::Service::Heartbeat(::grpc::ServerContext* context, const ::csvservice::HeartbeatRequest* request, ::csvservice::HeartbeatResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status CsvService::Service::ReplicateUpload(::grpc::ServerContext* context, const ::csvservice::CsvUploadRequest* request, ::csvservice::ReplicateUploadResponse* response) {
+  (void) context;
+  (void) request;
+  (void) response;
+  return ::grpc::Status(::grpc::StatusCode::UNIMPLEMENTED, "");
+}
+
+::grpc::Status CsvService::Service::ApplyMutation(::grpc::ServerContext* context, const ::csvservice::ReplicateMutationRequest* request, ::csvservice::ReplicateMutationResponse* response) {
   (void) context;
   (void) request;
   (void) response;

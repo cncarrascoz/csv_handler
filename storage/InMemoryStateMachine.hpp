@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/IStateMachine.hpp"
+#include "column_store.hpp"
 #include "core/TableView.hpp"
 #include "core/Mutation.hpp"
 
@@ -57,16 +58,14 @@ public:
                      const std::vector<std::string>& column_names,
                      const std::unordered_map<std::string, std::vector<std::string>>& columns);
 
+    // Get direct access to the underlying file map
+    const std::unordered_map<std::string, ColumnStore>& get_files() const;
+
 private:
     // Thread-safe access to the state
     mutable std::shared_mutex mutex_;
     
-    // Column-oriented storage for each file
-    struct ColumnStore {
-        std::vector<std::string> column_names;
-        std::unordered_map<std::string, std::vector<std::string>> columns;
-    };
-    
+    // Use the external ColumnStore definition
     std::unordered_map<std::string, ColumnStore> files_;
     
     // Helper methods for mutations

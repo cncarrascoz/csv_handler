@@ -14,7 +14,7 @@ namespace server {
 class ServerMenu {
 public:
     // Command handler typedef - function taking tokenized command and reference to service
-    using CommandHandler = std::function<bool(const std::vector<std::string>&, CsvServiceImpl&)>;
+    using CommandHandler = std::function<bool(const std::vector<std::string>&, network::CsvServiceImpl&)>;
     
     // Constructor
     ServerMenu();
@@ -24,7 +24,7 @@ public:
                          const std::string& description);
     
     // Process a command line
-    bool processCommand(const std::string& command_line, CsvServiceImpl& service);
+    bool processCommand(const std::string& command_line, network::CsvServiceImpl& service);
     
     // Display the menu
     void displayMenu() const;
