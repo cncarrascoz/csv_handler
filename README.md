@@ -89,10 +89,8 @@ csv_handler/
 │   ├── mock_data1.csv     # Sample CSV file with 4 columns
 │   └── test_data.csv      # Sample CSV file matching examples in this README
 ├── distributed/    # Distributed system components
-│   ├── main.cpp           # Distributed test entry point
 │   ├── raft_node.cpp      # Raft consensus implementation
-│   ├── raft_node.hpp      # Raft node interface
-│   └── raft_test          # Test binary for Raft implementation
+│   └── raft_node.hpp      # Raft node interface
 ├── persistence/    # Data persistence components
 │   ├── DurableStateMachine.cpp  # Persistent state machine implementation
 │   ├── DurableStateMachine.hpp  # Durable state machine interface
