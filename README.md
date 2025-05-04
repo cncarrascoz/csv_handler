@@ -2,15 +2,34 @@
 
 ## 1. Project Overview
 
-This project implements a client-server system in C++ using gRPC and Protocol Buffers. The primary goal is to allow a client application to send CSV data to a server, where the server parses the data and stores it efficiently in memory using a column-store format. The system provides a modular, extensible command interface for data manipulation and analysis, with clean separation between frontend and backend logic. It is designed with future distributed architecture in mind.
+This project implements a distributed column-oriented database system in C++ using gRPC and Protocol Buffers. The system uses a Raft-inspired consensus algorithm for fault tolerance and high availability, allowing data to be replicated across multiple servers in a cluster.
+
+Key features of the system include:
+
+- **Distributed Architecture:** Multiple servers form a cluster with automatic leader election and data replication.
+- **Columnar Storage:** Data is stored in a column-oriented format optimized for analytical queries.
+- **State Machine Architecture:** A clean abstraction that separates the consensus logic from the storage implementation.
+- **Client-Server Communication:** Clients can connect to any server in the cluster, with automatic request forwarding to the current leader.
+- **Fault Tolerance:** The system can continue operating even if some servers fail, with automatic leader failover.
+- **Extensible Command Interface:** A modular, extensible command interface for data manipulation and analysis.
 
 ## 2. Architecture
 
-- **Client-Server Model:** A standard client-server architecture where the client initiates requests and the server responds.
+- **Distributed Columnstore Database:** The system has evolved from a simple CSV handler to a distributed column-oriented database with fault tolerance and high availability.
+
+- **State Machine Architecture:** The system uses a state machine abstraction (`IStateMachine` interface) that allows for different implementations (in-memory, durable, distributed) while maintaining a consistent interface for the server logic.
+
+- **Raft-inspired Consensus:** A simplified version of the Raft consensus algorithm is used for leader election and data replication across the cluster. This ensures consistency and fault tolerance.
+
+- **Client-Server Model:** A standard client-server architecture where clients connect to any server in the cluster. Non-leader servers automatically forward requests to the current leader.
+
 - **Command Dispatch System:** A flexible menu-based command system in both client and server that maps command strings to handler functions.
-- **Communication:** gRPC is used for defining the service interface (`proto/csv_service.proto`) and handling remote procedure calls between the client and server.
-- **Data Storage:** The server stores the parsed CSV data entirely in memory in a column-oriented format (map of column names to vectors of values), optimized for analytical queries.
-- **Separation of Concerns:** Clear separation between interface, command processing, network communication, and storage logic.
+
+- **Communication:** gRPC is used for defining the service interface (`proto/csv_service.proto`) and handling remote procedure calls between clients and servers, as well as inter-server communication.
+
+- **Columnar Storage:** Data is stored in a column-oriented format (map of column names to vectors of values), optimized for analytical queries.
+
+- **Separation of Concerns:** Clear separation between interface, command processing, network communication, consensus, and storage logic.
 
 ## 3. Features
 
@@ -215,34 +234,47 @@ csv_handler/
 
 ## 8. Distributed Usage
 
-The system supports multiple clients connecting to a single server, even from different machines on the same network.
+The system supports a distributed architecture with multiple servers forming a cluster for fault tolerance and high availability. Data is automatically replicated across the cluster using a simplified Raft-inspired consensus algorithm.
 
-1.  **Server Setup:**
-    *   Start the server on the host machine:
+1.  **Cluster Setup:**
+    *   Start multiple server instances, each with a unique address and knowledge of its peers:
         ```bash
-        ./server
+        # Start the first server (will become leader by default)
+        ./server localhost:50051 localhost:50052 localhost:50053
+        
+        # Start the second server in another terminal
+        ./server localhost:50052 localhost:50051 localhost:50053
+        
+        # Start the third server in another terminal
+        ./server localhost:50053 localhost:50051 localhost:50052
         ```
-    *   Use the `ip` command in the server menu to display the server's IP address.
-    *   Make note of the IP address (e.g., 192.168.1.100) to use for client connections.
-    *   Ensure that port 50051 is not blocked by any firewall.
+    *   Each server needs its own address as the first argument, followed by the addresses of all other servers in the cluster.
+    *   The servers will automatically establish connections with each other and elect a leader (by default, the server with the lexicographically smallest address).
 
-2.  **Client Connection from Another Machine:**
-    *   On a different machine, build the client using the same build instructions.
-    *   Connect to the remote server using its IP address:
+2.  **Client Connection to the Cluster:**
+    *   Connect a client to any server in the cluster:
         ```bash
-        ./client 192.168.1.100:50051
+        ./client localhost:50051
         ```
-        (Replace with the actual IP address of the server)
+    *   Clients can connect to any server in the cluster. Non-leader servers will automatically forward requests to the current leader.
+    *   For command-line mode, specify the command after the server address:
+        ```bash
+        ./client localhost:50051 upload test_data.csv
+        ```
 
-3.  **Collaborative Features:**
-    *   All clients connect to the same server and share the same data.
-    *   When one client uploads a CSV file or makes changes (insert/delete rows), those changes are immediately visible to all other connected clients.
-    *   Use the `list` command to see all available files on the server.
-    *   Use the `view <filename>` command to see the current state of any file.
+3.  **Fault Tolerance and Leader Election:**
+    *   If the leader server fails, the remaining servers will automatically detect the failure and elect a new leader.
+    *   Clients connected to the failed leader will need to reconnect to another server.
+    *   Data uploaded before the leader failure is preserved and accessible through the new leader.
 
-4.  **Network Considerations:**
-    *   Both machines must be on the same network or have appropriate routing configured.
-    *   For connections across different networks, you may need to set up port forwarding on your router.
+4.  **Data Replication:**
+    *   When a client uploads a file or makes changes to data on the leader, those changes are automatically replicated to all follower servers.
+    *   This ensures that if the leader fails, the new leader will have the most up-to-date data.
+    *   The replication process is transparent to clients.
+
+5.  **Network Considerations:**
+    *   All servers must be able to communicate with each other directly.
+    *   For a production deployment across different networks, you may need to configure appropriate firewall rules and network routing.
     *   For security in production environments, consider implementing authentication and encryption.
 
 ## 9. Example CSV Format and Operations
@@ -370,7 +402,53 @@ The codebase has been refactored with a more structured, layered architecture:
 - Connection health checking
 - Improved error handling and retry logic
 
-## 13. Future Distributed Version
+## 13. State Machine Architecture
+
+At the core of the system is the `IStateMachine` interface, which abstracts the underlying storage mechanism:
+
+```cpp
+class IStateMachine {
+public:
+    virtual void apply(const Mutation& mutation) = 0;
+    virtual TableView view(const std::string& file) const = 0;
+    virtual ~IStateMachine() = default;
+};
+```
+
+This approach allows for different implementations of the state machine while maintaining a consistent interface for the server logic:
+
+1. **InMemoryStateMachine**: The current primary implementation that stores data in memory without persistence.
+2. **DurableStateMachine**: An implementation that uses the Write-Ahead Log (WAL) and snapshots for durability.
+3. **Distributed State Machine**: Achieved through the leader-follower model where mutations are replicated across servers.
+
+### Mutation System
+
+The system uses a custom `Mutation` struct to represent state-changing operations:
+
+```cpp
+struct Mutation {
+    std::string file;
+    std::variant<RowInsert, RowDelete> op;
+    
+    bool has_insert() const { return std::holds_alternative<RowInsert>(op); }
+    bool has_delete() const { return std::holds_alternative<RowDelete>(op); }
+};
+```
+
+This design provides type safety and extensibility for adding new mutation types in the future.
+
+### Leader-Follower Replication
+
+The system uses a leader-follower model for replication:
+
+1. **Leader Election**: The `ServerRegistry` implements a deterministic leader election algorithm that selects the lexicographically smallest server address as the leader.
+2. **Request Forwarding**: Non-leader nodes forward client requests to the current leader.
+3. **Mutation Replication**: When a leader applies a mutation to its state machine, it replicates the mutation to all followers.
+4. **Fault Detection**: The `health_check_thread` periodically checks the health of all servers and triggers a new election if the leader fails.
+
+This architecture ensures that all servers eventually have a consistent view of the data, even in the presence of server failures.
+
+## 14. Future Distributed Version
 
 The system has been refactored with a state machine architecture that enables future durability and distributed features:
 
@@ -380,13 +458,18 @@ At the core of the system is the `IStateMachine` interface, which abstracts the 
 
 ```cpp
 class IStateMachine {
+public:
     virtual void apply(const Mutation& mutation) = 0;
     virtual TableView view(const std::string& file) const = 0;
     virtual ~IStateMachine() = default;
 };
 ```
 
-This approach allows for different implementations of the state machine (in-memory, durable, distributed) while maintaining a consistent interface for the server logic. The current implementation uses `InMemoryStateMachine`, which stores data in memory without persistence.
+This approach allows for different implementations of the state machine while maintaining a consistent interface for the server logic:
+
+1. **InMemoryStateMachine**: The current primary implementation that stores data in memory without persistence.
+2. **DurableStateMachine**: An implementation that uses the Write-Ahead Log (WAL) and snapshots for durability.
+3. **Distributed State Machine**: Achieved through the leader-follower model where mutations are replicated across servers.
 
 ### Mutation System
 
