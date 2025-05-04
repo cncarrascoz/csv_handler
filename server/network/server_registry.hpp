@@ -22,6 +22,9 @@ public:
     // Singleton access
     static ServerRegistry& instance();
     
+    // Constructor
+    ServerRegistry(const std::string& self_addr, bool is_leader = false);
+    
     // Register this server with the registry
     void register_self(const std::string& server_address);
     
@@ -59,9 +62,6 @@ public:
     void set_server_list_change_callback(std::function<void(const std::vector<std::string>&)> callback);
 
 private:
-    // Private constructor for singleton
-    ServerRegistry();
-    
     // Prevent copying
     ServerRegistry(const ServerRegistry&) = delete;
     ServerRegistry& operator=(const ServerRegistry&) = delete;

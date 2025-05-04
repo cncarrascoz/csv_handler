@@ -18,15 +18,54 @@ namespace network {
 
 // Singleton instance
 ServerRegistry& ServerRegistry::instance() {
-    static ServerRegistry instance;
+    static ServerRegistry instance("", false);
     return instance;
 }
 
 // Constructor
-ServerRegistry::ServerRegistry() 
-    : running_(false), 
-      rng_(std::random_device()()) {
-    // Initialize with empty values
+ServerRegistry::ServerRegistry(const std::string& self_addr, bool is_leader) 
+    : self_address_(self_addr), running_(false), rng_(std::random_device()()) {
+    
+    std::cout << "Initializing ServerRegistry with self address: " << self_addr << std::endl;
+    
+    // If this server is designated as the leader, set the leader address
+    if (is_leader) {
+        std::cout << "This server is designated as the leader" << std::endl;
+        leader_address_ = self_addr;
+    }
+    
+    // Hardcoded list of all expected servers in our cluster
+    std::vector<std::string> all_expected_servers = {
+        "localhost:50051",
+        "localhost:50052",
+        "localhost:50053"
+    };
+    
+    std::cout << "Registering all known servers in the cluster..." << std::endl;
+    
+    // Register all servers except self
+    for (const auto& server : all_expected_servers) {
+        if (server != self_addr) {
+            std::cout << "Pre-registering peer server: " << server << std::endl;
+            peer_addresses_.push_back(server);
+        }
+    }
+    
+    // If no leader is designated yet, use the first server as the default leader
+    if (leader_address_.empty() && !all_expected_servers.empty()) {
+        leader_address_ = all_expected_servers[0];
+        std::cout << "No leader designated, using default leader: " << leader_address_ << std::endl;
+    }
+    
+    std::cout << "ServerRegistry initialized with " << peer_addresses_.size() 
+              << " peers and leader: " << leader_address_ << std::endl;
+    
+    // Print all registered peers
+    std::cout << "Registered peers: ";
+    for (const auto& peer : peer_addresses_) {
+        std::cout << peer << " ";
+    }
+    std::cout << std::endl;
 }
 
 // Register this server
@@ -216,6 +255,7 @@ void ServerRegistry::health_check_thread() {
         }
 
         std::vector<std::string> servers_to_unregister;
+        std::string detected_leader;
 
         for (const auto& peer : peers) {
             // Create a temporary stub for the health check
@@ -234,7 +274,24 @@ void ServerRegistry::health_check_thread() {
                 // Peer is healthy, update last seen time and reset failure count
                 last_seen_[peer] = now;
                 consecutive_failures_[peer] = 0; // Reset failure count on success
-                // std::cout << "Health check successful for peer " << peer << std::endl; // Optional: Verbose success log
+                
+                // Check if the peer reports a different leader
+                if (!response.leader_address().empty() && response.leader_address() != leader_address_) {
+                    // If peer reports a different leader, update our leader
+                    std::cout << "Peer " << peer << " reports leader as " << response.leader_address() 
+                              << " (our current leader: " << leader_address_ << ")" << std::endl;
+                    
+                    // Only update if we're not the leader ourselves
+                    if (leader_address_ != self_address_) {
+                        leader_address_ = response.leader_address();
+                        std::cout << "Updated leader to: " << leader_address_ << std::endl;
+                        
+                        // Notify about leader change
+                        if (leader_change_callback_) {
+                            leader_change_callback_(leader_address_);
+                        }
+                    }
+                }
             } else {
                 // Peer failed health check
                 std::cerr << "Health check failed for peer " << peer << ": " << status.error_message() << std::endl;

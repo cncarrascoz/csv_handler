@@ -95,25 +95,30 @@ int main(int argc, char** argv) {
     }
     std::string listening_address = "0.0.0.0:" + port_str;
 
-    // Initialize ServerRegistry (Singleton)
-    network::ServerRegistry& registry = network::ServerRegistry::instance();
-    registry.register_self(self_address);
-    std::cout << "Registering self: " << self_address << std::endl;
-    if (argc > 2) {
-        std::cout << "Registering peers:" << std::endl;
-        for (int i = 2; i < argc; ++i) {
-            std::string peer_address = argv[i];
-            // TODO: Add validation for peer_address format if needed
-            registry.register_peer(peer_address);
-            std::cout << " - " << peer_address << std::endl;
-        }
+    // Check if this server should be the leader (50051 is our designated leader)
+    bool is_leader = (port_str == "50051");
+    std::cout << "Server role: " << (is_leader ? "LEADER" : "FOLLOWER") << std::endl;
+    
+    // Create a new ServerRegistry instance with the self address and leader status
+    network::ServerRegistry registry(self_address, is_leader);
+    
+    // Start the registry background threads
+    registry.start();
+    
+    std::cout << "Server registry initialized and started" << std::endl;
+    std::cout << "Self address: " << self_address << std::endl;
+    std::cout << "Leader address: " << registry.get_leader() << std::endl;
+    
+    // Print all known servers
+    auto all_servers = registry.get_all_servers();
+    std::cout << "All known servers (" << all_servers.size() << "): ";
+    for (const auto& server : all_servers) {
+        std::cout << server << " ";
     }
-
-    registry.start(); // Start registry (will now include discovery)
+    std::cout << std::endl;
 
     // Instantiate the service implementation
-    // Pass the registry to the service if needed, or let the service get the singleton instance
-    CsvServiceImpl service(registry); // Pass registry
+    CsvServiceImpl service(registry);
 
     grpc::EnableDefaultHealthCheckService(true);
     grpc::reflection::InitProtoReflectionServerBuilderPlugin();

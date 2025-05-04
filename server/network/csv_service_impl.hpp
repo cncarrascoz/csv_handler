@@ -206,6 +206,13 @@ private:
     // Helper to replicate file uploads with majority acknowledgment
     // Returns true if a majority of servers acknowledged the upload, false otherwise
     bool replicate_upload_with_majority_ack(const csvservice::CsvUploadRequest& request);
+    
+    // Helper to start background recovery for servers that failed initial replication
+    // This ensures eventual consistency across all servers even after majority acknowledgment
+    void start_background_recovery(const Mutation& mutation, const std::vector<std::string>& failed_servers);
+    
+    // Helper to start background recovery for file uploads that failed initial replication
+    void start_background_upload_recovery(const csvservice::CsvUploadRequest& request, const std::vector<std::string>& failed_servers);
 };
 
 } // namespace network
