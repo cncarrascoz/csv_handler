@@ -7,7 +7,7 @@
 
 /**
  * Write-ahead log for durably storing mutations before applying them
- * This is currently a stub implementation that doesn't actually persist data
+ * This implementation persists mutations to disk for durability
  */
 class WriteAheadLog {
 public:
@@ -49,6 +49,10 @@ private:
     mutable std::mutex mutex_;
     uint64_t last_index_ = 0;
     
-    // In-memory cache of mutations (would be replaced with actual file I/O)
+    // In-memory cache of mutations
     std::vector<Mutation> mutations_;
+    
+    // Helper methods for serialization
+    std::string serialize_mutation(const Mutation& mutation) const;
+    Mutation deserialize_mutation(const std::string& serialized) const;
 };

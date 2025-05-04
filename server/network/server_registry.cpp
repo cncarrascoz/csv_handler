@@ -152,17 +152,18 @@ std::vector<std::string> ServerRegistry::get_all_servers() const {
     std::lock_guard<std::mutex> lock(mutex_);
     
     std::vector<std::string> all_servers;
-    all_servers.reserve(peer_addresses_.size() + 1);
-    
-    // Add self if registered
     if (!self_address_.empty()) {
         all_servers.push_back(self_address_);
     }
-    
-    // Add peers
     all_servers.insert(all_servers.end(), peer_addresses_.begin(), peer_addresses_.end());
     
     return all_servers;
+}
+
+// Get all peer server addresses (excluding self)
+std::vector<std::string> ServerRegistry::get_peer_addresses() const {
+    std::lock_guard<std::mutex> lock(mutex_);
+    return peer_addresses_;
 }
 
 // Get count of active servers

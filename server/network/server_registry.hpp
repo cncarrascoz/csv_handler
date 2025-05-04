@@ -49,6 +49,9 @@ public:
     // Get all known server addresses
     std::vector<std::string> get_all_servers() const;
     
+    // Get all peer server addresses (excluding self)
+    std::vector<std::string> get_peer_addresses() const;
+    
     // Get count of active servers
     size_t active_server_count() const;
     

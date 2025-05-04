@@ -108,7 +108,7 @@ bool handleList(const std::vector<std::string>& tokens, network::CsvServiceImpl&
     std::cout << "\nLoaded files:\n";
     
     // Acquire shared lock for reading
-    std::shared_lock<std::shared_mutex> lock(service.files_mutex);
+    std::shared_lock<std::shared_mutex> lock(service.files_mutex_);
     
     // Use get_loaded_files() instead of directly accessing loaded_files
     const auto& files = service.get_loaded_files();
@@ -142,7 +142,7 @@ bool handleStats(const std::vector<std::string>& tokens, network::CsvServiceImpl
     }
     
     // Acquire shared lock for reading
-    std::shared_lock<std::shared_mutex> lock(service.files_mutex);
+    std::shared_lock<std::shared_mutex> lock(service.files_mutex_);
     
     // Use get_loaded_files() method for backward compatibility
     const auto& files = service.get_loaded_files();

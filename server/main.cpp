@@ -6,6 +6,7 @@
 #include <thread>
 #include <atomic>
 #include <csignal> // Include for signal handling
+#include <filesystem> // Include for directory operations
 
 #include <grpcpp/grpcpp.h>
 #include <grpcpp/health_check_service_interface.h>
@@ -80,6 +81,16 @@ int main(int argc, char** argv) {
         std::cerr << "Usage: " << argv[0] << " <self_address> [peer_address_1] [peer_address_2] ..." << std::endl;
         std::cerr << "  Example: " << argv[0] << " localhost:50051 localhost:50052 localhost:50053" << std::endl;
         return 1;
+    }
+
+    // Create persistence directories
+    try {
+        std::filesystem::create_directories("data");
+        std::filesystem::create_directories("logs");
+        std::cout << "Created persistence directories (data/ and logs/)" << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Error creating persistence directories: " << e.what() << std::endl;
+        // Continue anyway, as the PersistenceManager will attempt to create them as well
     }
 
     // The first argument is the address this server will use and advertise

@@ -44,6 +44,7 @@ add_library(persistence STATIC
     persistence/WriteAheadLog.cpp
     persistence/Snapshot.cpp
     persistence/DurableStateMachine.cpp
+    persistence/PersistenceManager.cpp
 )
 
 # Distributed library with fault tolerance implementation
@@ -59,7 +60,7 @@ add_library(utils STATIC
 # Link dependencies
 target_link_libraries(core PUBLIC csv_handler_cc_proto)
 target_link_libraries(storage PUBLIC core)
-target_link_libraries(persistence PUBLIC storage)
+target_link_libraries(persistence PUBLIC core storage)
 target_link_libraries(distributed PUBLIC persistence)
 
 # Server executable

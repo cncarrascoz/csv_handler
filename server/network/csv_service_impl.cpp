@@ -5,6 +5,7 @@
 #include "server_registry.hpp"
 #include <grpcpp/grpcpp.h>
 #include "storage/InMemoryStateMachine.hpp"
+#include "persistence/PersistenceManager.hpp"
 #include <memory>
 #include <chrono>
 #include <thread>
@@ -13,6 +14,7 @@
 #include <iostream>
 #include <numeric>
 #include <limits>
+#include <filesystem>
 
 using grpc::ServerContext;
 using grpc::Status;
@@ -23,11 +25,57 @@ using grpc::ClientContext;
 namespace network {
 
 CsvServiceImpl::CsvServiceImpl(ServerRegistry& registry)
-    : registry_(registry), state_(std::make_unique<InMemoryStateMachine>()) // Simplified state machine for now
+    : registry_(registry), 
+      state_(std::make_shared<InMemoryStateMachine>())
 { 
-    // Constructor body - can be empty if initialization is done in member initializers
-    // or if registry handles its own lifecycle setup elsewhere (like in main.cpp)
+    // Initialize the service
+    initialize();
+    
+    // Register for leader change notifications
+    registry_.set_leader_change_callback([this](const std::string& new_leader) {
+        this->handle_leader_change(new_leader);
+    });
 } 
+
+CsvServiceImpl::~CsvServiceImpl() {
+    std::cout << "CsvServiceImpl destructor called" << std::endl;
+    
+    // Ensure any pending persistence operations are completed
+    if (persistence_manager_) {
+        // Create a final snapshot before shutting down
+        persistence_manager_->create_snapshot();
+    }
+}
+
+// Initialize the service
+void CsvServiceImpl::initialize() {
+    std::cout << "Initializing CsvServiceImpl..." << std::endl;
+    
+    // Create data and log directories if they don't exist
+    std::filesystem::create_directories("data");
+    std::filesystem::create_directories("logs");
+    
+    // Initialize the persistence manager
+    persistence_manager_ = std::make_unique<PersistenceManager>(
+        state_,
+        "data", // Data directory for snapshots
+        "logs"  // Log directory for WAL
+    );
+    
+    // Recover state from disk
+    bool recovery_success = persistence_manager_->initialize();
+    
+    if (recovery_success) {
+        std::cout << "Successfully recovered state from disk" << std::endl;
+    } else {
+        std::cout << "No state recovered from disk or recovery failed" << std::endl;
+    }
+    
+    // Update the loaded files cache
+    update_loaded_files_cache();
+    
+    std::cout << "CsvServiceImpl initialization complete" << std::endl;
+}
 
 Status CsvServiceImpl::UploadCsv(
     ServerContext* context,
@@ -76,12 +124,38 @@ Status CsvServiceImpl::UploadCsv(
         row_count = column_store.columns.empty() ? 0 : column_store.columns.begin()->second.size(); 
         col_count = column_store.column_names.size(); 
         
-        auto* mem_state = dynamic_cast<InMemoryStateMachine*>(state_.get());
-        if (mem_state) {
-            mem_state->add_csv_file(filename, column_store.column_names, column_store.columns);
-        } else { 
-            throw std::runtime_error("Internal error: State machine not available"); 
-        } 
+        // Add the file to the in-memory state machine
+        state_->add_csv_file(filename, column_store.column_names, column_store.columns);
+        
+        // Persist the data using the PersistenceManager
+        if (persistence_manager_) {
+            std::cout << "Persisting uploaded CSV data to disk..." << std::endl;
+            
+            // For each row, create and observe a mutation
+            if (!column_store.column_names.empty() && !column_store.columns.empty()) {
+                size_t num_rows = column_store.columns[column_store.column_names[0]].size();
+                
+                for (size_t row_idx = 0; row_idx < num_rows; ++row_idx) {
+                    Mutation mutation;
+                    mutation.file = filename;
+                    
+                    RowInsert insert;
+                    for (const auto& col_name : column_store.column_names) {
+                        insert.values.push_back(column_store.columns[col_name][row_idx]);
+                    }
+                    
+                    mutation.op = insert;
+                    persistence_manager_->observe_mutation(mutation);
+                }
+                
+                // Create a snapshot after uploading a file
+                persistence_manager_->create_snapshot();
+                std::cout << "CSV data persisted to disk successfully" << std::endl;
+            }
+        }
+        
+        // Update the loaded files cache
+        update_loaded_files_cache();
          
         // Set successful response for the original client 
         response->set_success(true); 
@@ -94,332 +168,384 @@ Status CsvServiceImpl::UploadCsv(
         std::cerr << "Error processing file " << filename << " locally: " << e.what() << std::endl; 
         response->set_success(false); 
         response->set_message(std::string("Failed to process CSV locally: ") + e.what()); 
-        // Don't set row/col count on failure 
-        return Status(grpc::StatusCode::INTERNAL, e.what()); 
+        return Status::OK; // Return OK status but with error in response 
     } 
      
-    // 2. Replicate Asynchronously to Peers (if this is the leader in a cluster)
-    if (!leader_address.empty() && leader_address == self_addr) { // Double check we are leader
-        std::vector<std::string> peers = registry_.get_all_servers(); // Get all known servers 
-        std::cout << "Asynchronously replicating " << filename << " to peers..." << std::endl;
-
-        // Make a copy of the request data needed for replication
-        // Create a shared_ptr to manage the request's lifetime across threads
-        auto request_copy_ptr = std::make_shared<csvservice::CsvUploadRequest>(*request);
-
-        for (const auto& peer_addr : peers) {
-            if (peer_addr == self_addr) continue; // Don't replicate to self
-
-            // Launch replication in a separate thread
-            std::thread([peer_addr, request_copy_ptr, self_addr] { // Capture necessary data
-                std::cout << "  Replication thread started for: " << peer_addr << std::endl;
-                try {
-                    auto channel = grpc::CreateChannel(peer_addr, grpc::InsecureChannelCredentials());
-                    auto stub = csvservice::CsvService::NewStub(channel);
-
-                    csvservice::ReplicateUploadResponse replicate_response;
-                    grpc::ClientContext replicate_context;
-                    // Set a timeout for replication call
-                    std::chrono::system_clock::time_point replicate_deadline = 
-                        std::chrono::system_clock::now() + std::chrono::seconds(5); // Increased timeout slightly
-                    replicate_context.set_deadline(replicate_deadline);
-
-                    // Use the captured request_copy_ptr
-                    Status replicate_status = stub->ReplicateUpload(&replicate_context, *request_copy_ptr, &replicate_response);
-
-                    if (replicate_status.ok() && replicate_response.success()) {
-                        std::cout << "    Successfully replicated " << request_copy_ptr->filename() << " to " << peer_addr << std::endl;
-                    } else {
-                        std::cerr << "    Failed to replicate " << request_copy_ptr->filename() << " to " << peer_addr 
-                                  << ": " << replicate_status.error_code() << ": " 
-                                  << replicate_status.error_message() 
-                                  << " (Peer response: " << replicate_response.message() << ")" << std::endl;
-                        // Consider adding retry logic here or notifying a monitoring system
-                    }
-                } catch (const std::exception& e) {
-                    std::cerr << "    Exception during replication to " << peer_addr << ": " << e.what() << std::endl;
-                } catch (...) {
-                    std::cerr << "    Unknown exception during replication to " << peer_addr << std::endl;
-                }
-                std::cout << "  Replication thread finished for: " << peer_addr << std::endl;
-            }).detach(); // Detach the thread to run independently
-        }
-        // Note: Replication completion is not guaranteed when UploadCsv returns
-        // Client response is sent before replication finishes.
-    }
-
-    // Return OK status to the original client immediately after local processing 
-    // (if standalone) or after launching async replication (if leader).
-    // Replication happens in the background.
-    return Status::OK;
-}
-
-Status CsvServiceImpl::ReplicateUpload( 
-     ServerContext* context, 
-     const csvservice::CsvUploadRequest* request, 
-     csvservice::ReplicateUploadResponse* response) {
-    
-    std::cout << "Received replication request for file: " << request->filename() << std::endl;
-    
-    // Perform the actual local loading 
-    std::string filename = request->filename(); 
-    std::string csv_data(request->csv_data()); 
-    
-    try { 
-        ColumnStore column_store = csv::parse_csv(csv_data); 
-        auto* mem_state = dynamic_cast<InMemoryStateMachine*>(state_.get()); 
-        if (mem_state) { 
-            mem_state->add_csv_file(filename, column_store.column_names, column_store.columns); 
-            response->set_success(true); 
-            response->set_message("Replication processed (stub implementation).");
-            return Status::OK;
-        } else { 
-            response->set_success(false); 
-            response->set_message("Internal error: State machine not available"); 
-            return Status(grpc::StatusCode::INTERNAL, "State machine unavailable");
+    // 2. Replicate to Peers if we're the leader 
+    if (registry_.is_leader()) { 
+        std::vector<std::string> peers = registry_.get_peer_addresses(); 
+        if (!peers.empty()) { 
+            std::cout << "Replicating upload to " << peers.size() << " peers..." << std::endl; 
+             
+            // Create a thread pool or use async operations for parallel replication 
+            std::vector<std::future<bool>> replication_futures; 
+             
+            for (const auto& peer_address : peers) { 
+                // Use async to replicate in parallel 
+                auto future = std::async(std::launch::async, [peer_address, request]() -> bool { 
+                    std::cout << "Replicating to peer: " << peer_address << std::endl; 
+                     
+                    // Create channel and stub for the peer 
+                    auto channel = grpc::CreateChannel(peer_address, grpc::InsecureChannelCredentials()); 
+                    auto stub = csvservice::CsvService::NewStub(channel); 
+                     
+                    // Set up context with timeout 
+                    grpc::ClientContext context; 
+                    std::chrono::system_clock::time_point deadline = 
+                        std::chrono::system_clock::now() + std::chrono::seconds(10); 
+                    context.set_deadline(deadline); 
+                     
+                    // Call ReplicateUpload RPC 
+                    csvservice::ReplicateUploadResponse peer_response; 
+                    auto status = stub->ReplicateUpload(&context, *request, &peer_response); 
+                     
+                    if (!status.ok()) { 
+                        std::cerr << "Failed to replicate to " << peer_address << ": " 
+                                  << status.error_message() << std::endl; 
+                        return false; 
+                    } 
+                     
+                    if (!peer_response.success()) { 
+                        std::cerr << "Peer " << peer_address << " reported error: " 
+                                  << peer_response.message() << std::endl; 
+                        return false; 
+                    } 
+                     
+                    std::cout << "Successfully replicated to " << peer_address << std::endl; 
+                    return true; 
+                }); 
+                 
+                replication_futures.push_back(std::move(future)); 
+            } 
+             
+            // Wait for all replications to complete 
+            int success_count = 0; 
+            for (auto& future : replication_futures) { 
+                if (future.get()) { 
+                    success_count++; 
+                } 
+            } 
+             
+            std::cout << "Replication completed: " << success_count << "/" << peers.size() 
+                      << " peers successful" << std::endl; 
+             
+            // If we couldn't replicate to all peers, we might want to log this 
+            // but still return success to the client if at least one peer got it 
+            if (success_count < peers.size()) { 
+                std::cerr << "Warning: Could not replicate to all peers" << std::endl; 
+                // We could add this info to the response message if desired 
+            } 
         } 
-    } catch (const std::exception& e) { 
-        response->set_success(false); 
-        response->set_message(std::string("Replication failed: ") + e.what()); 
-        std::cerr << "Error replicating file " << filename << ": " << e.what() << std::endl; 
-        return Status(grpc::StatusCode::INTERNAL, e.what()); 
     } 
+     
+    return Status::OK; 
 }
 
 Status CsvServiceImpl::ViewFile(ServerContext* context, 
                                 const csvservice::ViewFileRequest* request, 
                                 csvservice::ViewFileResponse* response) {
-    std::cout << "Processing ViewFile request for: " << request->filename() << std::endl;
-
-    auto* mem_state = dynamic_cast<InMemoryStateMachine*>(state_.get());
-    if (!mem_state) {
-        response->set_success(false);
-        response->set_message("Internal server error: State machine unavailable.");
-        return Status(grpc::StatusCode::INTERNAL, "State machine unavailable");
-    }
-
-    const std::string& filename = request->filename();
-
-    if (!mem_state->file_exists(filename)) {
-        response->set_success(false);
-        response->set_message("File not found on server.");
-        std::cerr << "ViewFile error: File not found - " << filename << std::endl;
-        return Status(grpc::StatusCode::NOT_FOUND, "File not found");
-    }
-
+    std::string filename = request->filename();
+    std::cout << "ViewFile request for: " << filename << std::endl;
+    
     try {
-        TableView table_view = mem_state->view(filename);
-
-        response->set_success(true);
-        response->set_message("File content retrieved successfully.");
-
-        // Populate column names
-        for (const auto& name : table_view.column_names) {
-            response->add_column_names(name);
+        // Get the file data from the state machine
+        TableView view = state_->view(filename);
+        
+        // Set the column names in the response
+        for (const auto& col_name : view.column_names) {
+            response->add_column_names(col_name);
         }
-
-        // Populate rows
-        size_t num_rows = table_view.row_count();
-        for (size_t i = 0; i < num_rows; ++i) {
-            csvservice::Row* row_proto = response->add_rows(); // Use Row type
-            for (const auto& col_name : table_view.column_names) {
-                // Access cell data using column name and row index
-                // Use .at() for bounds checking, though direct access [] might be slightly faster if confident
-                row_proto->add_values(table_view.columns.at(col_name).at(i));
+        
+        // Set the row data in the response
+        for (int row = 0; row < view.row_count(); ++row) {
+            auto* row_data = response->add_rows();
+            for (const auto& col_name : view.column_names) {
+                // Access the column data directly
+                row_data->add_values(view.columns.at(col_name).at(row));
             }
         }
-
-        std::cout << "Successfully retrieved content for " << filename << std::endl;
-        return Status::OK;
-
+        
+        response->set_success(true);
+        response->set_message("File retrieved successfully");
     } catch (const std::exception& e) {
+        std::cerr << "Error viewing file " << filename << ": " << e.what() << std::endl;
         response->set_success(false);
-        response->set_message(std::string("Error retrieving file data: ") + e.what());
-        std::cerr << "ViewFile exception for " << filename << ": " << e.what() << std::endl;
-        return Status(grpc::StatusCode::INTERNAL, e.what());
+        response->set_message(std::string("Failed to view file: ") + e.what());
     }
+    
+    return Status::OK;
 }
 
 Status CsvServiceImpl::DeleteRow(ServerContext* context, const csvservice::DeleteRowRequest* request, csvservice::ModificationResponse* response) {
-    const std::string& filename = request->filename();
-    int row_index = request->row_index();
-
-    std::cout << "DeleteRow called for file: " << filename << ", row index: " << row_index << std::endl;
-
-    // Define the handler function to perform the actual deletion
-    auto handler = [this, &filename, row_index, response](const csvservice::DeleteRowRequest*, csvservice::ModificationResponse* resp) -> grpc::Status {
-        try {
-            Mutation mutation;
-            mutation.file = filename;
-            mutation.op = RowDelete{row_index};
-            state_->apply(mutation);
-
-            resp->set_success(true);
-            resp->set_message("Row deleted successfully.");
-            std::cout << "Successfully deleted row " << row_index << " from " << filename << std::endl;
-            
-            // Replicate the delete mutation to peers if this node is the leader
-            if (registry_.is_leader()) {
-                replicate_mutation_async(mutation);
-            }
-
-            return Status::OK;
-        } catch (const std::exception& e) {
-            resp->set_success(false);
-            resp->set_message(std::string("Error deleting row: ") + e.what());
-            std::cerr << "DeleteRow exception for " << filename << ": " << e.what() << std::endl;
-            return Status(grpc::StatusCode::INTERNAL, e.what());
-        }
+    // Check if we need to forward to the leader
+    auto handler = [this](const csvservice::DeleteRowRequest* req, csvservice::ModificationResponse* res) -> Status {
+        return this->DeleteRow(nullptr, req, res);
     };
-
-    // Forward if needed, or execute locally if leader
-    std::function<grpc::Status(const csvservice::DeleteRowRequest*, csvservice::ModificationResponse*)> handler_func = handler;
-    bool forwarded = forward_to_leader_if_needed(request, response, handler_func);
-    if (forwarded) {
-        // The response is populated by the forward_to_leader_if_needed function upon receiving leader's response
-        // Determine status based on response success flag
-        std::cout << "DeleteRow request forwarded to leader for file: " << filename << std::endl;
-        return response->success() ? Status::OK : Status(grpc::StatusCode::INTERNAL, response->message());
-    } else {
-        // Executed locally (either leader or standalone)
-        return handler(request, response);
+    
+    if (forward_to_leader_if_needed(request, response, handler)) {
+        return Status::OK;
     }
+    
+    // We are the leader, process the request
+    std::string filename = request->filename();
+    int row_index = request->row_index();
+    
+    try {
+        // Create a delete mutation
+        Mutation mutation;
+        mutation.file = filename;
+        RowDelete del;
+        del.row_index = row_index;
+        mutation.op = del;
+        
+        // Apply the mutation to the in-memory state machine
+        state_->apply(mutation);
+        
+        // Persist the mutation
+        if (persistence_manager_) {
+            persistence_manager_->observe_mutation(mutation);
+        }
+        
+        // Update the loaded files cache
+        update_loaded_files_cache();
+        
+        // Replicate the mutation to peers
+        replicate_mutation_async(mutation);
+        
+        response->set_success(true);
+        response->set_message("Row deleted successfully");
+    } catch (const std::exception& e) {
+        std::cerr << "Error deleting row " << row_index << " from " << filename << ": " << e.what() << std::endl;
+        response->set_success(false);
+        response->set_message(std::string("Failed to delete row: ") + e.what());
+    }
+    
+    return Status::OK;
 }
 
 Status CsvServiceImpl::InsertRow(ServerContext* context, const csvservice::InsertRowRequest* request, csvservice::ModificationResponse* response) {
-    const std::string& filename = request->filename();
-    std::cout << "InsertRow called for file: " << filename << std::endl;
-
-    // Define the handler function to perform the actual insertion
-    auto handler = [this, &filename, request, response](const csvservice::InsertRowRequest*, csvservice::ModificationResponse* resp) -> grpc::Status {
-        try {
-            Mutation mutation;
-            mutation.file = filename;
-            RowInsert insert_op;
-            // Convert protobuf repeated field to std::vector<std::string>
-            insert_op.values.reserve(request->values_size());
-            for (const auto& val : request->values()) {
-                insert_op.values.push_back(val);
-            }
-            mutation.op = insert_op;
-
-            state_->apply(mutation);
-
-            resp->set_success(true);
-            resp->set_message("Row inserted successfully.");
-            std::cout << "Successfully inserted row into " << filename << std::endl;
-
-            // Replicate the insert mutation to peers if this node is the leader
-            if (registry_.is_leader()) {
-                replicate_mutation_async(mutation);
-            }
-
-            return Status::OK;
-        } catch (const std::exception& e) {
-            resp->set_success(false);
-            resp->set_message(std::string("Error inserting row: ") + e.what());
-            std::cerr << "InsertRow exception for " << filename << ": " << e.what() << std::endl;
-            return Status(grpc::StatusCode::INTERNAL, e.what());
-        }
+    // Check if we need to forward to the leader
+    auto handler = [this](const csvservice::InsertRowRequest* req, csvservice::ModificationResponse* res) -> Status {
+        return this->InsertRow(nullptr, req, res);
     };
-
-    // Forward if needed, or execute locally if leader
-    std::function<grpc::Status(const csvservice::InsertRowRequest*, csvservice::ModificationResponse*)> handler_func = handler;
-    bool forwarded = forward_to_leader_if_needed(request, response, handler_func);
-    if (forwarded) {
-        // Response populated by forwarded call
-        std::cout << "InsertRow request forwarded to leader for file: " << filename << std::endl;
-        return response->success() ? Status::OK : Status(grpc::StatusCode::INTERNAL, response->message());
-    } else {
-        // Executed locally
-        return handler(request, response);
+    
+    if (forward_to_leader_if_needed(request, response, handler)) {
+        return Status::OK;
     }
+    
+    // We are the leader, process the request
+    std::string filename = request->filename();
+    std::vector<std::string> values;
+    for (const auto& value : request->values()) {
+        values.push_back(value);
+    }
+    
+    try {
+        // Create an insert mutation
+        Mutation mutation;
+        mutation.file = filename;
+        RowInsert insert;
+        insert.values = values;
+        mutation.op = insert;
+        
+        // Apply the mutation to the in-memory state machine
+        state_->apply(mutation);
+        
+        // Persist the mutation
+        if (persistence_manager_) {
+            persistence_manager_->observe_mutation(mutation);
+        }
+        
+        // Update the loaded files cache
+        update_loaded_files_cache();
+        
+        // Replicate the mutation to peers
+        replicate_mutation_async(mutation);
+        
+        response->set_success(true);
+        response->set_message("Row inserted successfully");
+    } catch (const std::exception& e) {
+        std::cerr << "Error inserting row into " << filename << ": " << e.what() << std::endl;
+        response->set_success(false);
+        response->set_message(std::string("Failed to insert row: ") + e.what());
+    }
+    
+    return Status::OK;
+}
+
+// Internal RPC used by the leader to replicate an upload to peers
+Status CsvServiceImpl::ReplicateUpload(
+    ServerContext* context,
+    const csvservice::CsvUploadRequest* request,
+    csvservice::ReplicateUploadResponse* response) {
+    
+    std::string filename = request->filename();
+    std::string csv_data = request->csv_data();
+    
+    try {
+        // Parse the CSV data
+        ColumnStore column_store = csv::parse_csv(csv_data);
+        
+        // Add to in-memory state machine
+        state_->add_csv_file(filename, column_store.column_names, column_store.columns);
+        
+        // Persist the data
+        if (persistence_manager_) {
+            // For each row, create and observe a mutation
+            for (size_t row_idx = 0; row_idx < column_store.columns[column_store.column_names[0]].size(); ++row_idx) {
+                Mutation mutation;
+                mutation.file = filename;
+                
+                RowInsert insert;
+                for (const auto& col_name : column_store.column_names) {
+                    insert.values.push_back(column_store.columns[col_name][row_idx]);
+                }
+                
+                mutation.op = insert;
+                persistence_manager_->observe_mutation(mutation);
+            }
+        }
+        
+        // Update the loaded files cache
+        update_loaded_files_cache();
+        
+        // Set success response
+        response->set_success(true);
+        response->set_message("Successfully replicated upload");
+        std::cout << "Successfully replicated upload for " << filename << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Error replicating upload for " << filename << ": " << e.what() << std::endl;
+        response->set_success(false);
+        response->set_message(std::string("Failed to replicate upload: ") + e.what());
+    }
+    
+    return Status::OK;
 }
 
 // --- STUB IMPLEMENTATIONS for methods causing linker errors ---
 
 // Stub for ApplyMutation (called by peers when leader replicates)
 Status CsvServiceImpl::ApplyMutation(ServerContext* context, const csvservice::ReplicateMutationRequest* request, csvservice::ReplicateMutationResponse* response) {
-    // Correctly access fields based on proto definition
-    const std::string& filename = request->filename(); // Filename is top-level
-    std::cout << "[Stub] ApplyMutation called for file: " << filename << std::endl;
-
-    // TODO: Implement actual mutation application logic using state_->apply()
-    // Need to reconstruct the C++ Mutation object from the proto request
+    std::string filename = request->filename();
+    
     try {
-         Mutation mutation; // Defined in core/Mutation.hpp
-         mutation.file = filename;
-         if (request->has_row_insert()) { // Check oneof case
-             const auto& insert_mutation_proto = request->row_insert(); // Get the inner message
-             // Convert proto repeated string to std::vector<std::string>
-             mutation.op = RowInsert{std::vector<std::string>(insert_mutation_proto.values().begin(), insert_mutation_proto.values().end())};
-         } else if (request->has_row_delete()) { // Check oneof case
-             const auto& delete_mutation_proto = request->row_delete(); // Get the inner message
-             mutation.op = RowDelete{delete_mutation_proto.row_index()};
-         } else {
-             // This case should ideally not happen if the request is valid proto
-             response->set_success(false);
-             response->set_message("Invalid mutation type in request");
-             return Status(grpc::StatusCode::INVALID_ARGUMENT, "Invalid mutation type");
-         }
-         state_->apply(mutation); // Apply the reconstructed C++ mutation
-         response->set_success(true);
-         response->set_message("Mutation applied by follower (stub).");
-         return Status::OK;
+        // Create a mutation from the request
+        Mutation mutation;
+        mutation.file = filename;
+        
+        if (request->has_row_insert()) {
+            RowInsert insert;
+            for (const auto& value : request->row_insert().values()) {
+                insert.values.push_back(value);
+            }
+            mutation.op = insert;
+        } else if (request->has_row_delete()) {
+            RowDelete del;
+            del.row_index = request->row_delete().row_index();
+            mutation.op = del;
+        } else {
+            throw std::runtime_error("Unknown mutation type");
+        }
+        
+        // Apply the mutation to the in-memory state machine
+        state_->apply(mutation);
+        
+        // Persist the mutation
+        if (persistence_manager_) {
+            persistence_manager_->observe_mutation(mutation);
+        }
+        
+        // Update the loaded files cache
+        update_loaded_files_cache();
+        
+        response->set_success(true);
+        response->set_message("Mutation applied successfully");
     } catch (const std::exception& e) {
-         std::cerr << "[Stub] Error applying mutation: " << e.what() << std::endl;
-         response->set_success(false);
-         response->set_message(std::string("Failed to apply mutation: ") + e.what());
-         return Status(grpc::StatusCode::INTERNAL, e.what());
+        std::cerr << "Error applying mutation to " << filename << ": " << e.what() << std::endl;
+        response->set_success(false);
+        response->set_message(std::string("Failed to apply mutation: ") + e.what());
     }
+    
+    return Status::OK;
 }
 
 // Stub for replicate_mutation_async (called by leader after local insert/delete)
 void CsvServiceImpl::replicate_mutation_async(const Mutation& mutation) {
-     std::cout << "[Stub] replicate_mutation_async called for file: " << mutation.file << std::endl;
-     // TODO: Implement actual asynchronous replication logic for mutations
-     auto peers = registry_.get_all_servers(); // Use get_all_servers
-     for (const auto& peer_addr : peers) {
-         if (peer_addr == registry_.get_self_address()) continue;
-
-         // Create a copy of the mutation for the thread
-         Mutation mutation_copy = mutation;
-
-         std::thread([peer_addr, mutation_copy]() {
-             std::cout << "  [Stub] Replication thread for mutation started for: " << peer_addr << std::endl;
-             try {
-                 auto channel = grpc::CreateChannel(peer_addr, grpc::InsecureChannelCredentials());
-                 auto stub = csvservice::CsvService::NewStub(channel);
-                 csvservice::ReplicateMutationRequest req;
-                 csvservice::ReplicateMutationResponse resp;
-                 ClientContext context;
-                 std::chrono::system_clock::time_point deadline = 
-                        std::chrono::system_clock::now() + std::chrono::seconds(5);
-                 context.set_deadline(deadline);
-
-                 // Populate request from mutation_copy
-                 req.set_filename(mutation_copy.file); // Set top-level filename
-
-                 if (std::holds_alternative<RowInsert>(mutation_copy.op)) {
-                    auto* row_insert_proto = req.mutable_row_insert(); // Get mutable inner message
-                    const auto& row_insert_data = std::get<RowInsert>(mutation_copy.op); // Get C++ RowInsert
-                    // Copy values from C++ RowInsert.values to proto RowInsertMutation.values
-                    row_insert_proto->mutable_values()->Add(row_insert_data.values.begin(), row_insert_data.values.end());
-                 } else if (std::holds_alternative<RowDelete>(mutation_copy.op)) {
-                    auto* row_delete_proto = req.mutable_row_delete(); // Get mutable inner message
-                    row_delete_proto->set_row_index(std::get<RowDelete>(mutation_copy.op).row_index);
-                 }
-
-                 Status status = stub->ApplyMutation(&context, req, &resp);
-                 if (!status.ok() || !resp.success()) {
-                    std::cerr << "    [Stub] Failed to replicate mutation to " << peer_addr << ": " << status.error_message() << std::endl;
-                 }
-             } catch (const std::exception& e) {
-                  std::cerr << "    [Stub] Exception replicating mutation to " << peer_addr << ": " << e.what() << std::endl;
-             }
-             std::cout << "  [Stub] Replication thread for mutation finished for: " << peer_addr << std::endl;
-         }).detach();
-     }
+    // Get all peer addresses
+    std::vector<std::string> peers = registry_.get_peer_addresses();
+    if (peers.empty()) {
+        return;
+    }
+    
+    std::cout << "Replicating mutation to " << peers.size() << " peers..." << std::endl;
+    
+    // Create a thread pool or use async operations for parallel replication
+    std::vector<std::future<bool>> replication_futures;
+    
+    for (const auto& peer_address : peers) {
+        // Use async to replicate in parallel
+        auto future = std::async(std::launch::async, [this, peer_address, &mutation]() -> bool {
+            std::cout << "Replicating mutation to peer: " << peer_address << std::endl;
+            
+            // Create channel and stub for the peer
+            auto channel = grpc::CreateChannel(peer_address, grpc::InsecureChannelCredentials());
+            auto stub = csvservice::CsvService::NewStub(channel);
+            
+            // Set up context with timeout
+            grpc::ClientContext context;
+            std::chrono::system_clock::time_point deadline =
+                std::chrono::system_clock::now() + std::chrono::seconds(5);
+            context.set_deadline(deadline);
+            
+            // Create the request
+            csvservice::ReplicateMutationRequest request;
+            request.set_filename(mutation.file);
+            
+            if (std::holds_alternative<RowInsert>(mutation.op)) {
+                auto insert = std::get<RowInsert>(mutation.op);
+                auto* row_insert = request.mutable_row_insert();
+                for (const auto& value : insert.values) {
+                    row_insert->add_values(value);
+                }
+            } else if (std::holds_alternative<RowDelete>(mutation.op)) {
+                auto del = std::get<RowDelete>(mutation.op);
+                auto* row_delete = request.mutable_row_delete();
+                row_delete->set_row_index(del.row_index);
+            }
+            
+            // Call ApplyMutation RPC
+            csvservice::ReplicateMutationResponse response;
+            auto status = stub->ApplyMutation(&context, request, &response);
+            
+            if (!status.ok()) {
+                std::cerr << "Failed to replicate mutation to " << peer_address << ": "
+                          << status.error_message() << std::endl;
+                return false;
+            }
+            
+            if (!response.success()) {
+                std::cerr << "Peer " << peer_address << " reported error: "
+                          << response.message() << std::endl;
+                return false;
+            }
+            
+            std::cout << "Successfully replicated mutation to " << peer_address << std::endl;
+            return true;
+        });
+        
+        replication_futures.push_back(std::move(future));
+    }
+    
+    // Wait for all replications to complete
+    int success_count = 0;
+    for (auto& future : replication_futures) {
+        if (future.get()) {
+            success_count++;
+        }
+    }
+    
+    std::cout << "Mutation replication completed: " << success_count << "/" << peers.size()
+              << " peers successful" << std::endl;
 }
 
 // Stub for ComputeSum
@@ -445,11 +571,13 @@ Status CsvServiceImpl::ComputeAverage(ServerContext* context, const csvservice::
 // Stub for ListLoadedFiles (RPC)
 Status CsvServiceImpl::ListLoadedFiles(ServerContext* context, const csvservice::Empty* request, csvservice::CsvFileList* response) {
     std::cout << "[Stub] ListLoadedFiles RPC called." << std::endl;
-    // TODO: Get file list from state machine
-    const auto& files_map = get_loaded_files(); // Call the internal helper (returns map ref)
-    for (const auto& file_pair : files_map) { // Iterate map pairs
-        response->add_filenames(file_pair.first); // Add the filename (key) to the response
+    
+    // Get file list from state machine
+    const auto& files = state_->list_files();
+    for (const auto& filename : files) {
+        response->add_filenames(filename);
     }
+    
     return Status::OK;
 }
 
@@ -493,23 +621,50 @@ Status CsvServiceImpl::GetClusterStatus(ServerContext* context, const csvservice
      return Status::OK;
 }
 
-// Stub for get_loaded_files (Internal helper used by menu.cpp)
-// Match return type from header: const std::unordered_map<std::string, ColumnStore>&
-const std::unordered_map<std::string, ColumnStore>& CsvServiceImpl::get_loaded_files() const {
-    std::cout << "[Stub] get_loaded_files called." << std::endl;
-    // TODO: Implement actual logic to get files from state_
-    auto* mem_state = dynamic_cast<const InMemoryStateMachine*>(state_.get());
-    if (mem_state) {
-        // Assuming InMemoryStateMachine has a method returning the map ref:
-        // return mem_state->get_all_files(); 
-        // For the stub, return a static empty map to match the signature
-        static const std::unordered_map<std::string, ColumnStore> empty_map;
-        return empty_map;
+// Helper method to update the loaded files cache
+void CsvServiceImpl::update_loaded_files_cache() {
+    std::lock_guard<std::shared_mutex> lock(files_mutex_);
+    
+    // Clear the cache
+    loaded_files_cache_.clear();
+    
+    // Get the list of files from the state machine
+    const auto& files = state_->list_files();
+    
+    // For each file, get the column store and add it to the cache
+    for (const auto& filename : files) {
+        TableView view = state_->view(filename);
+        
+        ColumnStore column_store;
+        column_store.column_names = view.column_names;
+        column_store.columns = view.columns;
+        
+        loaded_files_cache_[filename] = column_store;
     }
-    // Return static empty map if state machine not available
-    static const std::unordered_map<std::string, ColumnStore> empty_map_fallback;
-    return empty_map_fallback;
 }
 
+// Helper method to handle leader change events
+void CsvServiceImpl::handle_leader_change(const std::string& new_leader) {
+    std::cout << "CsvServiceImpl notified of leader change to: " << new_leader << std::endl;
+
+    // If this server is now the leader, initialize leader state
+    if (new_leader == registry_.get_self_address()) {
+        std::cout << "THIS SERVER IS NOW THE LEADER - Ready to handle client requests directly" << std::endl;
+
+        // Ensure state machine is ready for leader operations
+        if (state_) {
+            std::cout << "Initializing leader state machine and replication pipeline" << std::endl;
+            // Refresh internal state if needed
+            update_loaded_files_cache();
+        } else {
+            std::cerr << "ERROR: State machine is null during leader transition!" << std::endl;
+        }
+
+        // Log readiness to accept client requests
+        std::cout << "Leader initialization complete - Now accepting client requests and handling replication" << std::endl;
+    } else {
+        std::cout << "Leader changed to: " << new_leader << " - Will forward client requests to new leader" << std::endl;
+    }
+}
 
 } // namespace network
