@@ -159,26 +159,36 @@ Status CsvServiceImpl::ReplicateUpload(
      const csvservice::CsvUploadRequest* request, 
      csvservice::ReplicateUploadResponse* response) {
     
-    std::cout << "Received replication request for file: " << request->filename() << std::endl;
+    std::cout << "Received file replication request from leader for: " << request->filename() << std::endl;
     
-    // Perform the actual local loading 
+    // Extract file information from the request
     std::string filename = request->filename(); 
     std::string csv_data(request->csv_data()); 
     
     try { 
+        // Parse the CSV data
         ColumnStore column_store = csv::parse_csv(csv_data); 
+        
+        // Get access to the state machine
         auto* mem_state = dynamic_cast<InMemoryStateMachine*>(state_.get()); 
         if (mem_state) { 
+            // Add the file to the local state machine
             mem_state->add_csv_file(filename, column_store.column_names, column_store.columns); 
+            
+            // Set success response
             response->set_success(true); 
-            response->set_message("Replication processed (stub implementation).");
+            response->set_message("File successfully replicated to follower");
+            std::cout << "Successfully replicated file: " << filename << " from leader" << std::endl;
             return Status::OK;
         } else { 
+            // State machine not available
             response->set_success(false); 
             response->set_message("Internal error: State machine not available"); 
+            std::cerr << "Failed to replicate file: State machine unavailable" << std::endl;
             return Status(grpc::StatusCode::INTERNAL, "State machine unavailable");
         } 
     } catch (const std::exception& e) { 
+        // Error processing the file
         response->set_success(false); 
         response->set_message(std::string("Replication failed: ") + e.what()); 
         std::cerr << "Error replicating file " << filename << ": " << e.what() << std::endl; 
@@ -336,88 +346,155 @@ Status CsvServiceImpl::InsertRow(ServerContext* context, const csvservice::Inser
     }
 }
 
-// Stub for ApplyMutation (called by peers when leader replicates)
+// ApplyMutation RPC handler - called by leader to replicate mutations to followers
 Status CsvServiceImpl::ApplyMutation(ServerContext* context, const csvservice::ReplicateMutationRequest* request, csvservice::ReplicateMutationResponse* response) {
-    // Correctly access fields based on proto definition
-    const std::string& filename = request->filename(); // Filename is top-level
-    std::cout << "[Stub] ApplyMutation called for file: " << filename << std::endl;
+    // Extract the filename from the request
+    const std::string& filename = request->filename();
+    std::cout << "Received mutation from leader for file: " << filename << std::endl;
 
-    // TODO: Implement actual mutation application logic using state_->apply()
-    // Need to reconstruct the C++ Mutation object from the proto request
     try {
-         Mutation mutation; // Defined in core/Mutation.hpp
-         mutation.file = filename;
-         if (request->has_row_insert()) { // Check oneof case
-             const auto& insert_mutation_proto = request->row_insert(); // Get the inner message
-             // Convert proto repeated string to std::vector<std::string>
-             mutation.op = RowInsert{std::vector<std::string>(insert_mutation_proto.values().begin(), insert_mutation_proto.values().end())};
-         } else if (request->has_row_delete()) { // Check oneof case
-             const auto& delete_mutation_proto = request->row_delete(); // Get the inner message
-             mutation.op = RowDelete{delete_mutation_proto.row_index()};
-         } else {
-             // This case should ideally not happen if the request is valid proto
-             response->set_success(false);
-             response->set_message("Invalid mutation type in request");
-             return Status(grpc::StatusCode::INVALID_ARGUMENT, "Invalid mutation type");
-         }
-         state_->apply(mutation); // Apply the reconstructed C++ mutation
-         response->set_success(true);
-         response->set_message("Mutation applied by follower (stub).");
-         return Status::OK;
-    } catch (const std::exception& e) {
-         std::cerr << "[Stub] Error applying mutation: " << e.what() << std::endl;
-         response->set_success(false);
-         response->set_message(std::string("Failed to apply mutation: ") + e.what());
-         return Status(grpc::StatusCode::INTERNAL, e.what());
+        // Convert the protobuf mutation to our internal Mutation type
+        Mutation mutation;
+        mutation.file = filename;
+        
+        // Handle different mutation types (insert or delete)
+        if (request->has_row_insert()) {
+            const auto& insert_mutation_proto = request->row_insert();
+            // Convert proto repeated string to std::vector<std::string>
+            mutation.op = RowInsert{std::vector<std::string>(
+                insert_mutation_proto.values().begin(), 
+                insert_mutation_proto.values().end())};
+            std::cout << "Applying row insert mutation from leader" << std::endl;
+        } 
+        else if (request->has_row_delete()) {
+            const auto& delete_mutation_proto = request->row_delete();
+            mutation.op = RowDelete{delete_mutation_proto.row_index()};
+            std::cout << "Applying row delete mutation from leader" << std::endl;
+        } 
+        else {
+            // Invalid mutation type
+            response->set_success(false);
+            response->set_message("Invalid mutation type in request");
+            return Status(grpc::StatusCode::INVALID_ARGUMENT, "Invalid mutation type");
+        }
+        
+        // Apply the mutation to our local state machine
+        state_->apply(mutation);
+        
+        // Set success response
+        response->set_success(true);
+        response->set_message("Mutation successfully applied by follower");
+        return Status::OK;
+    } 
+    catch (const std::exception& e) {
+        std::cerr << "Error applying mutation from leader: " << e.what() << std::endl;
+        response->set_success(false);
+        response->set_message(std::string("Failed to apply mutation: ") + e.what());
+        return Status(grpc::StatusCode::INTERNAL, e.what());
     }
 }
 
-// Stub for replicate_mutation_async (called by leader after local insert/delete)
+// Replicates a mutation from the leader to all followers asynchronously
 void CsvServiceImpl::replicate_mutation_async(const Mutation& mutation) {
-     std::cout << "[Stub] replicate_mutation_async called for file: " << mutation.file << std::endl;
-     // TODO: Implement actual asynchronous replication logic for mutations
-     auto peers = registry_.get_all_servers(); // Use get_all_servers
-     for (const auto& peer_addr : peers) {
-         if (peer_addr == registry_.get_self_address()) continue;
-
-         // Create a copy of the mutation for the thread
-         Mutation mutation_copy = mutation;
-
-         std::thread([peer_addr, mutation_copy]() {
-             std::cout << "  [Stub] Replication thread for mutation started for: " << peer_addr << std::endl;
-             try {
-                 auto channel = grpc::CreateChannel(peer_addr, grpc::InsecureChannelCredentials());
-                 auto stub = csvservice::CsvService::NewStub(channel);
-                 csvservice::ReplicateMutationRequest req;
-                 csvservice::ReplicateMutationResponse resp;
-                 ClientContext context;
-                 std::chrono::system_clock::time_point deadline = 
-                        std::chrono::system_clock::now() + std::chrono::seconds(5);
-                 context.set_deadline(deadline);
-
-                 // Populate request from mutation_copy
-                 req.set_filename(mutation_copy.file); // Set top-level filename
-
-                 if (std::holds_alternative<RowInsert>(mutation_copy.op)) {
-                    auto* row_insert_proto = req.mutable_row_insert(); // Get mutable inner message
-                    const auto& row_insert_data = std::get<RowInsert>(mutation_copy.op); // Get C++ RowInsert
-                    // Copy values from C++ RowInsert.values to proto RowInsertMutation.values
-                    row_insert_proto->mutable_values()->Add(row_insert_data.values.begin(), row_insert_data.values.end());
-                 } else if (std::holds_alternative<RowDelete>(mutation_copy.op)) {
-                    auto* row_delete_proto = req.mutable_row_delete(); // Get mutable inner message
-                    row_delete_proto->set_row_index(std::get<RowDelete>(mutation_copy.op).row_index);
-                 }
-
-                 Status status = stub->ApplyMutation(&context, req, &resp);
-                 if (!status.ok() || !resp.success()) {
-                    std::cerr << "    [Stub] Failed to replicate mutation to " << peer_addr << ": " << status.error_message() << std::endl;
-                 }
-             } catch (const std::exception& e) {
-                  std::cerr << "    [Stub] Exception replicating mutation to " << peer_addr << ": " << e.what() << std::endl;
-             }
-             std::cout << "  [Stub] Replication thread for mutation finished for: " << peer_addr << std::endl;
-         }).detach();
-     }
+    // Only the leader should replicate mutations
+    if (!registry_.is_leader()) {
+        std::cerr << "Warning: Non-leader attempted to replicate mutation. Ignoring." << std::endl;
+        return;
+    }
+    
+    std::cout << "Leader replicating mutation for file: " << mutation.file << std::endl;
+    
+    // Get all servers in the cluster
+    auto peers = registry_.get_all_servers();
+    
+    // For each peer (excluding self)
+    for (const auto& peer_addr : peers) {
+        // Skip self (leader doesn't need to replicate to itself)
+        if (peer_addr == registry_.get_self_address()) {
+            continue;
+        }
+        
+        // Create a copy of the mutation for the thread
+        Mutation mutation_copy = mutation;
+        
+        // Launch a detached thread for each follower to handle replication asynchronously
+        std::thread([this, peer_addr, mutation_copy]() {
+            std::cout << "Starting replication to follower: " << peer_addr << std::endl;
+            
+            // Retry parameters
+            const int max_retries = 3;
+            const auto retry_delay = std::chrono::milliseconds(500);
+            
+            // Create gRPC channel and stub
+            auto channel = grpc::CreateChannel(peer_addr, grpc::InsecureChannelCredentials());
+            auto stub = csvservice::CsvService::NewStub(channel);
+            
+            // Prepare the mutation request
+            csvservice::ReplicateMutationRequest req;
+            csvservice::ReplicateMutationResponse resp;
+            
+            // Set the filename in the request
+            req.set_filename(mutation_copy.file);
+            
+            // Set the appropriate mutation type
+            if (std::holds_alternative<RowInsert>(mutation_copy.op)) {
+                // Handle row insert
+                auto* row_insert_proto = req.mutable_row_insert();
+                const auto& row_insert_data = std::get<RowInsert>(mutation_copy.op);
+                // Add all values to the repeated field
+                for (const auto& value : row_insert_data.values) {
+                    row_insert_proto->add_values(value);
+                }
+            } 
+            else if (std::holds_alternative<RowDelete>(mutation_copy.op)) {
+                // Handle row delete
+                auto* row_delete_proto = req.mutable_row_delete();
+                row_delete_proto->set_row_index(std::get<RowDelete>(mutation_copy.op).row_index);
+            }
+            
+            // Try to replicate with retries
+            bool success = false;
+            for (int attempt = 1; attempt <= max_retries && !success; ++attempt) {
+                ClientContext context;
+                
+                // Set a reasonable deadline for the RPC
+                std::chrono::system_clock::time_point deadline = 
+                    std::chrono::system_clock::now() + std::chrono::seconds(5);
+                context.set_deadline(deadline);
+                
+                // Make the RPC call
+                Status status = stub->ApplyMutation(&context, req, &resp);
+                
+                if (status.ok() && resp.success()) {
+                    // Successful replication
+                    std::cout << "Successfully replicated mutation to " << peer_addr 
+                              << " (attempt " << attempt << ")" << std::endl;
+                    success = true;
+                } 
+                else {
+                    // Failed replication
+                    std::cerr << "Failed to replicate mutation to " << peer_addr 
+                              << " (attempt " << attempt << "/" << max_retries << "): " 
+                              << status.error_message() << std::endl;
+                    
+                    // If we have more retries, wait before trying again
+                    if (attempt < max_retries) {
+                        std::this_thread::sleep_for(retry_delay);
+                    }
+                }
+            }
+            
+            if (!success) {
+                std::cerr << "All replication attempts to " << peer_addr << " failed. "
+                          << "Follower may be out of sync." << std::endl;
+                
+                // Note: In a more robust implementation, we might want to:
+                // 1. Mark this follower as out of sync
+                // 2. Implement a recovery mechanism for when it comes back online
+                // 3. Consider removing it from the cluster if it's permanently down
+            }
+        }).detach();  // Detach the thread to let it run independently
+    }
 }
 
 // Stub for ComputeSum
