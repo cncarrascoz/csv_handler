@@ -198,6 +198,14 @@ private:
 
     // Helper to replicate mutations (insert/delete) asynchronously
     void replicate_mutation_async(const Mutation& mutation); // Remove persistence::
+
+    // Helper to replicate mutations with majority acknowledgment (for fault tolerance)
+    // Returns true if a majority of servers acknowledged the mutation, false otherwise
+    bool replicate_with_majority_ack(const Mutation& mutation);
+
+    // Helper to replicate file uploads with majority acknowledgment
+    // Returns true if a majority of servers acknowledged the upload, false otherwise
+    bool replicate_upload_with_majority_ack(const csvservice::CsvUploadRequest& request);
 };
 
 } // namespace network

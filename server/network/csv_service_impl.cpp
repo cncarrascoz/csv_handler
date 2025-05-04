@@ -47,7 +47,7 @@ Status CsvServiceImpl::UploadCsv(
         grpc::ClientContext client_context;
         // Set a reasonable deadline for the forwarded call
         std::chrono::system_clock::time_point deadline = 
-            std::chrono::system_clock::now() + std::chrono::seconds(5);
+            std::chrono::system_clock::now() + std::chrono::seconds(20); // Increased timeout for majority ack
         client_context.set_deadline(deadline);
         
         auto status = stub->UploadCsv(&client_context, *request, response);
@@ -83,7 +83,7 @@ Status CsvServiceImpl::UploadCsv(
             throw std::runtime_error("Internal error: State machine not available"); 
         } 
          
-        // Set successful response for the original client 
+        // Set initial success response (will be updated based on replication result)
         response->set_success(true); 
         response->set_message("CSV file loaded successfully by leader."); 
         response->set_row_count(row_count); 
@@ -98,59 +98,25 @@ Status CsvServiceImpl::UploadCsv(
         return Status(grpc::StatusCode::INTERNAL, e.what()); 
     } 
      
-    // 2. Replicate Asynchronously to Peers (if this is the leader in a cluster)
+    // 2. Replicate to Peers with Majority Acknowledgment (if this is the leader in a cluster)
     if (!leader_address.empty() && leader_address == self_addr) { // Double check we are leader
-        std::vector<std::string> peers = registry_.get_all_servers(); // Get all known servers 
-        std::cout << "Asynchronously replicating " << filename << " to peers..." << std::endl;
-
-        // Make a copy of the request data needed for replication
-        // Create a shared_ptr to manage the request's lifetime across threads
-        auto request_copy_ptr = std::make_shared<csvservice::CsvUploadRequest>(*request);
-
-        for (const auto& peer_addr : peers) {
-            if (peer_addr == self_addr) continue; // Don't replicate to self
-
-            // Launch replication in a separate thread
-            std::thread([peer_addr, request_copy_ptr, self_addr] { // Capture necessary data
-                std::cout << "  Replication thread started for: " << peer_addr << std::endl;
-                try {
-                    auto channel = grpc::CreateChannel(peer_addr, grpc::InsecureChannelCredentials());
-                    auto stub = csvservice::CsvService::NewStub(channel);
-
-                    csvservice::ReplicateUploadResponse replicate_response;
-                    grpc::ClientContext replicate_context;
-                    // Set a timeout for replication call
-                    std::chrono::system_clock::time_point replicate_deadline = 
-                        std::chrono::system_clock::now() + std::chrono::seconds(5); // Increased timeout slightly
-                    replicate_context.set_deadline(replicate_deadline);
-
-                    // Use the captured request_copy_ptr
-                    Status replicate_status = stub->ReplicateUpload(&replicate_context, *request_copy_ptr, &replicate_response);
-
-                    if (replicate_status.ok() && replicate_response.success()) {
-                        std::cout << "    Successfully replicated " << request_copy_ptr->filename() << " to " << peer_addr << std::endl;
-                    } else {
-                        std::cerr << "    Failed to replicate " << request_copy_ptr->filename() << " to " << peer_addr 
-                                  << ": " << replicate_status.error_code() << ": " 
-                                  << replicate_status.error_message() 
-                                  << " (Peer response: " << replicate_response.message() << ")" << std::endl;
-                        // Consider adding retry logic here or notifying a monitoring system
-                    }
-                } catch (const std::exception& e) {
-                    std::cerr << "    Exception during replication to " << peer_addr << ": " << e.what() << std::endl;
-                } catch (...) {
-                    std::cerr << "    Unknown exception during replication to " << peer_addr << std::endl;
-                }
-                std::cout << "  Replication thread finished for: " << peer_addr << std::endl;
-            }).detach(); // Detach the thread to run independently
+        std::cout << "Replicating " << filename << " to peers with majority acknowledgment..." << std::endl;
+        
+        // Use the new majority acknowledgment method
+        bool majority_ack = replicate_upload_with_majority_ack(*request);
+        
+        if (majority_ack) {
+            std::cout << "Successfully replicated " << filename << " to majority of peers." << std::endl;
+            response->set_message("CSV file loaded successfully and replicated to majority of peers.");
+        } else {
+            std::cerr << "Failed to replicate " << filename << " to majority of peers." << std::endl;
+            response->set_success(false);
+            response->set_message("CSV file loaded locally but failed to replicate to majority of peers. Please retry.");
+            return Status(grpc::StatusCode::INTERNAL, "Failed to replicate to majority of peers");
         }
-        // Note: Replication completion is not guaranteed when UploadCsv returns
-        // Client response is sent before replication finishes.
     }
 
-    // Return OK status to the original client immediately after local processing 
-    // (if standalone) or after launching async replication (if leader).
-    // Replication happens in the background.
+    // Return OK status to the original client after local processing and replication
     return Status::OK;
 }
 
@@ -257,20 +223,37 @@ Status CsvServiceImpl::DeleteRow(ServerContext* context, const csvservice::Delet
     std::cout << "DeleteRow called for file: " << filename << ", row index: " << row_index << std::endl;
 
     // Define the handler function to perform the actual deletion
-    auto handler = [this, &filename, row_index, response](const csvservice::DeleteRowRequest*, csvservice::ModificationResponse* resp) -> grpc::Status {
+    auto handler = [this, &filename, row_index](const csvservice::DeleteRowRequest* req, csvservice::ModificationResponse* resp) -> grpc::Status {
         try {
+            // Create mutation object
             Mutation mutation;
             mutation.file = filename;
             mutation.op = RowDelete{row_index};
+            
+            // Apply the mutation locally
             state_->apply(mutation);
 
+            // Set initial success response
             resp->set_success(true);
             resp->set_message("Row deleted successfully.");
             std::cout << "Successfully deleted row " << row_index << " from " << filename << std::endl;
             
-            // Replicate the delete mutation to peers if this node is the leader
+            // Replicate the delete mutation to peers with majority acknowledgment if this node is the leader
             if (registry_.is_leader()) {
-                replicate_mutation_async(mutation);
+                std::cout << "Replicating row deletion to peers with majority acknowledgment..." << std::endl;
+                
+                // Use the majority acknowledgment method
+                bool majority_ack = replicate_with_majority_ack(mutation);
+                
+                if (majority_ack) {
+                    std::cout << "Successfully replicated row deletion to majority of peers." << std::endl;
+                    resp->set_message("Row deleted successfully and replicated to majority of peers.");
+                } else {
+                    std::cerr << "Failed to replicate row deletion to majority of peers." << std::endl;
+                    resp->set_success(false);
+                    resp->set_message("Row deleted locally but failed to replicate to majority of peers. Please retry.");
+                    return Status(grpc::StatusCode::INTERNAL, "Failed to replicate to majority of peers");
+                }
             }
 
             return Status::OK;
@@ -303,9 +286,11 @@ Status CsvServiceImpl::InsertRow(ServerContext* context, const csvservice::Inser
     // Define the handler function to perform the actual insertion
     auto handler = [this, &filename, request, response](const csvservice::InsertRowRequest*, csvservice::ModificationResponse* resp) -> grpc::Status {
         try {
+            // Create mutation object
             Mutation mutation;
             mutation.file = filename;
             RowInsert insert_op;
+            
             // Convert protobuf repeated field to std::vector<std::string>
             insert_op.values.reserve(request->values_size());
             for (const auto& val : request->values()) {
@@ -313,15 +298,30 @@ Status CsvServiceImpl::InsertRow(ServerContext* context, const csvservice::Inser
             }
             mutation.op = insert_op;
 
+            // Apply the mutation locally
             state_->apply(mutation);
 
+            // Set initial success response
             resp->set_success(true);
             resp->set_message("Row inserted successfully.");
             std::cout << "Successfully inserted row into " << filename << std::endl;
 
-            // Replicate the insert mutation to peers if this node is the leader
+            // Replicate the insert mutation to peers with majority acknowledgment if this node is the leader
             if (registry_.is_leader()) {
-                replicate_mutation_async(mutation);
+                std::cout << "Replicating row insertion to peers with majority acknowledgment..." << std::endl;
+                
+                // Use the majority acknowledgment method
+                bool majority_ack = replicate_with_majority_ack(mutation);
+                
+                if (majority_ack) {
+                    std::cout << "Successfully replicated row insertion to majority of peers." << std::endl;
+                    resp->set_message("Row inserted successfully and replicated to majority of peers.");
+                } else {
+                    std::cerr << "Failed to replicate row insertion to majority of peers." << std::endl;
+                    resp->set_success(false);
+                    resp->set_message("Row inserted locally but failed to replicate to majority of peers. Please retry.");
+                    return Status(grpc::StatusCode::INTERNAL, "Failed to replicate to majority of peers");
+                }
             }
 
             return Status::OK;
@@ -359,16 +359,18 @@ Status CsvServiceImpl::ApplyMutation(ServerContext* context, const csvservice::R
         
         // Handle different mutation types (insert or delete)
         if (request->has_row_insert()) {
-            const auto& insert_mutation_proto = request->row_insert();
+            // Handle row insert
+            const auto& row_insert_proto = request->row_insert();
             // Convert proto repeated string to std::vector<std::string>
             mutation.op = RowInsert{std::vector<std::string>(
-                insert_mutation_proto.values().begin(), 
-                insert_mutation_proto.values().end())};
+                row_insert_proto.values().begin(), 
+                row_insert_proto.values().end())};
             std::cout << "Applying row insert mutation from leader" << std::endl;
         } 
         else if (request->has_row_delete()) {
-            const auto& delete_mutation_proto = request->row_delete();
-            mutation.op = RowDelete{delete_mutation_proto.row_index()};
+            // Handle row delete
+            const auto& row_delete_proto = request->row_delete();
+            mutation.op = RowDelete{row_delete_proto.row_index()};
             std::cout << "Applying row delete mutation from leader" << std::endl;
         } 
         else {
@@ -497,7 +499,308 @@ void CsvServiceImpl::replicate_mutation_async(const Mutation& mutation) {
     }
 }
 
-// Stub for ComputeSum
+// Replicates a mutation to all followers and waits for majority acknowledgment
+bool CsvServiceImpl::replicate_with_majority_ack(const Mutation& mutation) {
+    // Only the leader should replicate mutations
+    if (!registry_.is_leader()) {
+        std::cerr << "Warning: Non-leader attempted to replicate mutation with majority ack. Ignoring." << std::endl;
+        return false;
+    }
+    
+    std::cout << "Leader replicating mutation for file: " << mutation.file << " with majority acknowledgment" << std::endl;
+    
+    // Get all servers in the cluster
+    auto peers = registry_.get_all_servers();
+    
+    // Calculate the number of servers needed for majority acknowledgment
+    // In a cluster of n servers, majority is (n/2)+1
+    int total_servers = peers.size();
+    int majority_threshold = (total_servers / 2) + 1;
+    
+    std::cout << "Total servers: " << total_servers << ", Majority threshold: " << majority_threshold << std::endl;
+    
+    // Count self (leader) as already acknowledged
+    int ack_count = 1;
+    
+    // Use a mutex and condition variable to synchronize the replication threads
+    std::mutex mutex;
+    std::condition_variable cv;
+    bool replication_complete = false;
+    
+    // Create a vector to track which servers have acknowledged
+    std::vector<std::string> acknowledged_servers = {registry_.get_self_address()};
+    
+    // For each peer (excluding self)
+    for (const auto& peer_addr : peers) {
+        // Skip self (leader doesn't need to replicate to itself)
+        if (peer_addr == registry_.get_self_address()) {
+            continue;
+        }
+        
+        // Create a copy of the mutation for the thread
+        Mutation mutation_copy = mutation;
+        
+        // Launch a thread for each follower to handle replication
+        std::thread([this, peer_addr, mutation_copy, &mutex, &cv, &ack_count, &acknowledged_servers, majority_threshold, &replication_complete]() {
+            std::cout << "Starting replication to follower: " << peer_addr << std::endl;
+            
+            // Retry parameters
+            const int max_retries = 3;
+            const auto retry_delay = std::chrono::milliseconds(500);
+            
+            // Create gRPC channel and stub
+            auto channel = grpc::CreateChannel(peer_addr, grpc::InsecureChannelCredentials());
+            auto stub = csvservice::CsvService::NewStub(channel);
+            
+            // Prepare the mutation request
+            csvservice::ReplicateMutationRequest req;
+            csvservice::ReplicateMutationResponse resp;
+            
+            // Set the filename in the request
+            req.set_filename(mutation_copy.file);
+            
+            // Set the appropriate mutation type
+            if (std::holds_alternative<RowInsert>(mutation_copy.op)) {
+                // Handle row insert
+                auto* row_insert_proto = req.mutable_row_insert();
+                const auto& row_insert_data = std::get<RowInsert>(mutation_copy.op);
+                // Add all values to the repeated field
+                for (const auto& value : row_insert_data.values) {
+                    row_insert_proto->add_values(value);
+                }
+            } 
+            else if (std::holds_alternative<RowDelete>(mutation_copy.op)) {
+                // Handle row delete
+                auto* row_delete_proto = req.mutable_row_delete();
+                row_delete_proto->set_row_index(std::get<RowDelete>(mutation_copy.op).row_index);
+            }
+            
+            // Try to replicate with retries
+            bool success = false;
+            for (int attempt = 1; attempt <= max_retries && !success; ++attempt) {
+                ClientContext context;
+                
+                // Set a reasonable deadline for the RPC
+                std::chrono::system_clock::time_point deadline = 
+                    std::chrono::system_clock::now() + std::chrono::seconds(5);
+                context.set_deadline(deadline);
+                
+                // Make the RPC call
+                Status status = stub->ApplyMutation(&context, req, &resp);
+                
+                if (status.ok() && resp.success()) {
+                    // Successful replication
+                    std::cout << "Successfully replicated mutation to " << peer_addr 
+                              << " (attempt " << attempt << ")" << std::endl;
+                    success = true;
+                } 
+                else {
+                    // Failed replication
+                    std::cerr << "Failed to replicate mutation to " << peer_addr 
+                              << " (attempt " << attempt << "/" << max_retries << "): " 
+                              << status.error_message() << std::endl;
+                    
+                    // If we have more retries, wait before trying again
+                    if (attempt < max_retries) {
+                        std::this_thread::sleep_for(retry_delay);
+                    }
+                }
+            }
+            
+            // Update the acknowledgment count and check if we've reached majority
+            if (success) {
+                std::lock_guard<std::mutex> lock(mutex);
+                ack_count++;
+                acknowledged_servers.push_back(peer_addr);
+                
+                std::cout << "Current ack count: " << ack_count << "/" << majority_threshold 
+                          << " (from: " << peer_addr << ")" << std::endl;
+                
+                // Check if we've reached majority
+                if (ack_count >= majority_threshold && !replication_complete) {
+                    replication_complete = true;
+                    cv.notify_all(); // Notify waiting threads that majority has been reached
+                }
+            }
+            else {
+                std::cerr << "All replication attempts to " << peer_addr << " failed. "
+                          << "Follower may be out of sync." << std::endl;
+            }
+        }).detach();  // Detach the thread to let it run independently
+    }
+    
+    // Wait for majority acknowledgment or timeout
+    std::unique_lock<std::mutex> lock(mutex);
+    auto timeout = std::chrono::seconds(10); // 10 second timeout for majority acknowledgment
+    
+    // If we already have majority, no need to wait
+    if (ack_count >= majority_threshold) {
+        std::cout << "Already reached majority acknowledgment: " << ack_count << "/" << majority_threshold << std::endl;
+        return true;
+    }
+    
+    // Wait for the condition variable to be notified or timeout
+    bool reached_majority = cv.wait_for(lock, timeout, [&replication_complete]() {
+        return replication_complete;
+    });
+    
+    if (reached_majority) {
+        std::cout << "Reached majority acknowledgment: " << ack_count << "/" << total_servers 
+                  << " servers acknowledged the mutation" << std::endl;
+        std::cout << "Acknowledged servers: ";
+        for (const auto& server : acknowledged_servers) {
+            std::cout << server << " ";
+        }
+        std::cout << std::endl;
+        return true;
+    } else {
+        std::cerr << "Failed to reach majority acknowledgment within timeout: " << ack_count << "/" << total_servers 
+                  << " servers acknowledged the mutation" << std::endl;
+        return false;
+    }
+}
+
+// Replicates a file upload to all followers and waits for majority acknowledgment
+bool CsvServiceImpl::replicate_upload_with_majority_ack(const csvservice::CsvUploadRequest& request) {
+    // Only the leader should replicate uploads
+    if (!registry_.is_leader()) {
+        std::cerr << "Warning: Non-leader attempted to replicate upload with majority ack. Ignoring." << std::endl;
+        return false;
+    }
+    
+    std::cout << "Leader replicating file upload for: " << request.filename() << " with majority acknowledgment" << std::endl;
+    
+    // Get all servers in the cluster
+    auto peers = registry_.get_all_servers();
+    
+    // Calculate the number of servers needed for majority acknowledgment
+    // In a cluster of n servers, majority is (n/2)+1
+    int total_servers = peers.size();
+    int majority_threshold = (total_servers / 2) + 1;
+    
+    std::cout << "Total servers: " << total_servers << ", Majority threshold: " << majority_threshold << std::endl;
+    
+    // Count self (leader) as already acknowledged
+    int ack_count = 1;
+    
+    // Use a mutex and condition variable to synchronize the replication threads
+    std::mutex mutex;
+    std::condition_variable cv;
+    bool replication_complete = false;
+    
+    // Create a vector to track which servers have acknowledged
+    std::vector<std::string> acknowledged_servers = {registry_.get_self_address()};
+    
+    // Create a shared_ptr to manage the request's lifetime across threads
+    auto request_copy_ptr = std::make_shared<csvservice::CsvUploadRequest>(request);
+    
+    // For each peer (excluding self)
+    for (const auto& peer_addr : peers) {
+        // Skip self (leader doesn't need to replicate to itself)
+        if (peer_addr == registry_.get_self_address()) {
+            continue;
+        }
+        
+        // Launch a thread for each follower to handle replication
+        std::thread([peer_addr, request_copy_ptr, &mutex, &cv, &ack_count, &acknowledged_servers, majority_threshold, &replication_complete]() {
+            std::cout << "Starting file upload replication to follower: " << peer_addr << std::endl;
+            
+            // Retry parameters
+            const int max_retries = 3;
+            const auto retry_delay = std::chrono::milliseconds(500);
+            
+            // Create gRPC channel and stub
+            auto channel = grpc::CreateChannel(peer_addr, grpc::InsecureChannelCredentials());
+            auto stub = csvservice::CsvService::NewStub(channel);
+            
+            // Prepare the replication request and response
+            csvservice::ReplicateUploadResponse resp;
+            
+            // Try to replicate with retries
+            bool success = false;
+            for (int attempt = 1; attempt <= max_retries && !success; ++attempt) {
+                ClientContext context;
+                
+                // Set a reasonable deadline for the RPC
+                std::chrono::system_clock::time_point deadline = 
+                    std::chrono::system_clock::now() + std::chrono::seconds(10); // Longer timeout for file uploads
+                context.set_deadline(deadline);
+                
+                // Make the RPC call
+                Status status = stub->ReplicateUpload(&context, *request_copy_ptr, &resp);
+                
+                if (status.ok() && resp.success()) {
+                    // Successful replication
+                    std::cout << "Successfully replicated file upload to " << peer_addr 
+                              << " (attempt " << attempt << ")" << std::endl;
+                    success = true;
+                } 
+                else {
+                    // Failed replication
+                    std::cerr << "Failed to replicate file upload to " << peer_addr 
+                              << " (attempt " << attempt << "/" << max_retries << "): " 
+                              << status.error_message() << std::endl;
+                    
+                    // If we have more retries, wait before trying again
+                    if (attempt < max_retries) {
+                        std::this_thread::sleep_for(retry_delay);
+                    }
+                }
+            }
+            
+            // Update the acknowledgment count and check if we've reached majority
+            if (success) {
+                std::lock_guard<std::mutex> lock(mutex);
+                ack_count++;
+                acknowledged_servers.push_back(peer_addr);
+                
+                std::cout << "Current ack count: " << ack_count << "/" << majority_threshold 
+                          << " (from: " << peer_addr << ")" << std::endl;
+                
+                // Check if we've reached majority
+                if (ack_count >= majority_threshold && !replication_complete) {
+                    replication_complete = true;
+                    cv.notify_all(); // Notify waiting threads that majority has been reached
+                }
+            }
+            else {
+                std::cerr << "All replication attempts to " << peer_addr << " failed. "
+                          << "Follower may be out of sync." << std::endl;
+            }
+        }).detach();  // Detach the thread to let it run independently
+    }
+    
+    // Wait for majority acknowledgment or timeout
+    std::unique_lock<std::mutex> lock(mutex);
+    auto timeout = std::chrono::seconds(15); // 15 second timeout for majority acknowledgment (longer for file uploads)
+    
+    // If we already have majority, no need to wait
+    if (ack_count >= majority_threshold) {
+        std::cout << "Already reached majority acknowledgment: " << ack_count << "/" << majority_threshold << std::endl;
+        return true;
+    }
+    
+    // Wait for the condition variable to be notified or timeout
+    bool reached_majority = cv.wait_for(lock, timeout, [&replication_complete]() {
+        return replication_complete;
+    });
+    
+    if (reached_majority) {
+        std::cout << "Reached majority acknowledgment: " << ack_count << "/" << total_servers 
+                  << " servers acknowledged the file upload" << std::endl;
+        std::cout << "Acknowledged servers: ";
+        for (const auto& server : acknowledged_servers) {
+            std::cout << server << " ";
+        }
+        std::cout << std::endl;
+        return true;
+    } else {
+        std::cerr << "Failed to reach majority acknowledgment within timeout: " << ack_count << "/" << total_servers 
+                  << " servers acknowledged the file upload" << std::endl;
+        return false;
+    }
+}
+
 Status CsvServiceImpl::ComputeSum(ServerContext* context, const csvservice::ColumnOperationRequest* request, csvservice::NumericResponse* response) {
     const std::string& filename = request->filename();
     const std::string& column_name = request->column_name();
@@ -543,7 +846,6 @@ Status CsvServiceImpl::ComputeSum(ServerContext* context, const csvservice::Colu
     return Status::OK;
 }
 
-// Stub for ComputeAverage
 Status CsvServiceImpl::ComputeAverage(ServerContext* context, const csvservice::ColumnOperationRequest* request, csvservice::NumericResponse* response) {
     const std::string& filename = request->filename();
     const std::string& column_name = request->column_name();
@@ -602,7 +904,6 @@ Status CsvServiceImpl::ComputeAverage(ServerContext* context, const csvservice::
     return Status::OK;
 }
 
-// Stub for ListLoadedFiles (RPC)
 Status CsvServiceImpl::ListLoadedFiles(ServerContext* context, const csvservice::Empty* request, csvservice::CsvFileList* response) {
     std::cout << "[Stub] ListLoadedFiles RPC called." << std::endl;
     // TODO: Get file list from state machine
@@ -613,7 +914,6 @@ Status CsvServiceImpl::ListLoadedFiles(ServerContext* context, const csvservice:
     return Status::OK;
 }
 
-// Stub for RegisterPeer
 Status CsvServiceImpl::RegisterPeer(ServerContext* context, const csvservice::RegisterPeerRequest* request, csvservice::RegisterPeerResponse* response) {
      // Use peer_address()
      std::cout << "[Stub] RegisterPeer called by: " << request->peer_address() << std::endl;
@@ -624,7 +924,6 @@ Status CsvServiceImpl::RegisterPeer(ServerContext* context, const csvservice::Re
      return Status::OK;
 }
 
-// Stub for Heartbeat
 Status CsvServiceImpl::Heartbeat(ServerContext* context, const csvservice::HeartbeatRequest* request, csvservice::HeartbeatResponse* response) {
     // std::cout << "[Stub] Heartbeat received from: " << request->sender_address() << std::endl; // sender_address may not exist
     // TODO: Update peer status in ServerRegistry based on heartbeat
@@ -634,7 +933,6 @@ Status CsvServiceImpl::Heartbeat(ServerContext* context, const csvservice::Heart
     return Status::OK;
 }
 
-// Stub for GetClusterStatus
 Status CsvServiceImpl::GetClusterStatus(ServerContext* context, const csvservice::Empty* request, csvservice::ClusterStatusResponse* response) {
      std::cout << "[Stub] GetClusterStatus called." << std::endl;
      response->set_leader_address(registry_.get_leader());
