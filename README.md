@@ -74,24 +74,25 @@ To build and run this project, you need:
 csv_handler/
 ├── build/          # Build directory (created by CMake)
 ├── client/
-│   ├── csv_client.cpp # Client logic implementation
-│   ├── csv_client.hpp # Client class header
-│   ├── main.cpp       # Client executable entry point
-│   ├── menu.cpp       # Client menu system implementation
-│   └── menu.hpp       # Client menu system header
+│   ├── csv_client.cpp     # Client logic implementation
+│   ├── csv_client.hpp     # Client class header
+│   ├── main.cpp           # Client executable entry point
+│   ├── menu.cpp           # Client menu system implementation
+│   └── menu.hpp           # Client menu system header
 ├── core/           # Core interfaces and data structures
 │   ├── IStateMachine.hpp  # State machine interface
 │   ├── Mutation.hpp       # Data mutation operations
+│   ├── TableView.cpp      # Implementation of read-only view
 │   └── TableView.hpp      # Read-only view abstraction
 ├── data/           # Directory containing sample CSV files
-│   ├── mock_data.csv  # Sample CSV file with 3 columns
-│   ├── mock_data1.csv # Sample CSV file with 4 columns
-│   └── test_data.csv  # Sample CSV file matching examples in this README
+│   ├── mock_data.csv      # Sample CSV file with 3 columns
+│   ├── mock_data1.csv     # Sample CSV file with 4 columns
+│   └── test_data.csv      # Sample CSV file matching examples in this README
 ├── distributed/    # Distributed system components
-│   ├── heartbeat.cpp     # Node communication implementation
-│   ├── heartbeat.hpp     # Heartbeat monitoring interface
-│   ├── raft_node.cpp     # Raft consensus implementation
-│   └── raft_node.hpp     # Raft node interface
+│   ├── main.cpp           # Distributed test entry point
+│   ├── raft_node.cpp      # Raft consensus implementation
+│   ├── raft_node.hpp      # Raft node interface
+│   └── raft_test          # Test binary for Raft implementation
 ├── persistence/    # Data persistence components
 │   ├── DurableStateMachine.cpp  # Persistent state machine implementation
 │   ├── DurableStateMachine.hpp  # Durable state machine interface
@@ -99,32 +100,36 @@ csv_handler/
 │   ├── Snapshot.hpp             # Snapshot interface
 │   ├── WriteAheadLog.cpp        # Write-ahead log implementation
 │   └── WriteAheadLog.hpp        # WAL interface
-├── proto/
-│   ├── csv_service.proto     # Service definition
-│   ├── mutation.proto        # Mutation message definitions
-│   ├── cluster_service.proto # Cluster communication service
-│   ├── generated/            # Generated protobuf code
-│   ├── csv_service.pb.cc     # Generated Protobuf C++ source
-│   ├── csv_service.pb.h      # Generated Protobuf C++ header
-│   ├── csv_service.grpc.pb.cc # Generated gRPC C++ source
-│   └── csv_service.grpc.pb.h # Generated gRPC C++ header
-├── server/
-│   ├── network/
-│   │   ├── csv_service_impl.cpp # Server RPC implementation
-│   │   └── csv_service_impl.hpp # Server RPC class header
+├── proto/          # Protocol Buffers definitions
+│   ├── cluster_service.proto    # Cluster communication service definition
+│   ├── csv_service.proto        # Main service definition
+│   ├── mutation.proto           # Mutation message definitions
+│   ├── csv_service.grpc.pb.cc   # Generated gRPC C++ source
+│   ├── csv_service.grpc.pb.h    # Generated gRPC C++ header
+│   ├── csv_service.pb.cc        # Generated Protobuf C++ source
+│   ├── csv_service.pb.h         # Generated Protobuf C++ header
+│   └── generated/               # Directory for generated code
+├── server/         # Server implementation
 │   ├── main.cpp                 # Server executable entry point
 │   ├── menu.cpp                 # Server menu system implementation
-│   └── menu.hpp                 # Server menu system header
+│   ├── menu.hpp                 # Server menu system header
+│   └── network/                 # Network-related components
+│       ├── csv_service_impl.cpp # Server RPC implementation
+│       ├── csv_service_impl.hpp # Server RPC class header
+│       ├── server_registry.cpp  # Server registry implementation
+│       └── server_registry.hpp  # Server registry interface
 ├── storage/        # Storage implementations
 │   ├── InMemoryStateMachine.cpp  # In-memory state machine implementation
 │   ├── InMemoryStateMachine.hpp  # In-memory state machine header
+│   ├── column_store.cpp          # Column store implementation
+│   ├── column_store.hpp          # Column store interface
 │   ├── csv_parser.cpp            # CSV parsing utilities
 │   └── csv_parser.hpp            # CSV parser interface
-├── utils/
-│   ├── file_utils.cpp # File reading utilities
-│   └── file_utils.hpp # Header for file utilities
-├── CMakeLists.txt     # CMake build configuration
-└── README.md          # This file
+├── utils/          # Utility functions
+│   ├── file_utils.cpp            # File reading utilities
+│   └── file_utils.hpp            # Header for file utilities
+├── CMakeLists.txt               # CMake build configuration
+└── README.md                    # This file
 ```
 
 ### Key Components:
@@ -382,7 +387,7 @@ The codebase has been refactored with a more structured, layered architecture:
 ### Core Layer
 - `core/IStateMachine.hpp`: Abstract interface for state management
 - `core/Mutation.hpp`: Defines data modification operations
-- `core/TableView.hpp`: Read-only view of stored data
+- `core/TableView.hpp`: Read-only view abstraction
 
 ### Storage Layer
 - `storage/InMemoryStateMachine.hpp/cpp`: In-memory implementation of IStateMachine
