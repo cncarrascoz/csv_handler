@@ -79,7 +79,7 @@ private:
     std::shared_ptr<Channel> create_channel(const std::string& server_address);
     
     // Get cluster status from the server
-    bool get_cluster_status(std::string& leader, std::vector<std::string>& servers, int& active_count);
+    bool get_cluster_status(std::string& leader, std::vector<std::string>& servers, int& active_count, bool debug_output = true);
     
     std::unique_ptr<CsvService::Stub> stub_;
     std::vector<std::string> server_addresses_;
@@ -95,7 +95,8 @@ private:
     Status MakeRpcCallWithRetry(
         StubMethod method_ptr, 
         const RequestType& request, 
-        ResponseType* response
+        ResponseType* response,
+        bool debug_output = true
     );
 
     // Thread management for display command
@@ -115,7 +116,7 @@ private:
     std::unordered_map<std::string, std::unique_ptr<DisplayThreadInfo>> display_threads_;
     
     // Helper function to fetch file content from server
-    std::string FetchFileContent(const std::string& filename);
+    std::string FetchFileContent(const std::string& filename, bool debug_output = true);
     
     // Thread function for continuous display updates
     void DisplayThreadFunction(DisplayThreadInfo* thread_info);

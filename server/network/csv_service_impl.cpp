@@ -336,8 +336,6 @@ Status CsvServiceImpl::InsertRow(ServerContext* context, const csvservice::Inser
     }
 }
 
-// --- STUB IMPLEMENTATIONS for methods causing linker errors ---
-
 // Stub for ApplyMutation (called by peers when leader replicates)
 Status CsvServiceImpl::ApplyMutation(ServerContext* context, const csvservice::ReplicateMutationRequest* request, csvservice::ReplicateMutationResponse* response) {
     // Correctly access fields based on proto definition
@@ -424,21 +422,106 @@ void CsvServiceImpl::replicate_mutation_async(const Mutation& mutation) {
 
 // Stub for ComputeSum
 Status CsvServiceImpl::ComputeSum(ServerContext* context, const csvservice::ColumnOperationRequest* request, csvservice::NumericResponse* response) {
-    std::cout << "[Stub] ComputeSum called." << std::endl;
-    // TODO: Implement sum logic using state_->view()
+    const std::string& filename = request->filename();
+    const std::string& column_name = request->column_name();
+    
+    std::cout << "ComputeSum called for file: " << filename << ", column: " << column_name << std::endl;
+    
+    // Get a view of the file data from the state machine
+    TableView view = state_->view(filename);
+    
+    if (view.empty()) {
+        response->set_success(false);
+        response->set_message("File not found: " + filename);
+        return Status::OK;
+    }
+    
+    // Check if the column exists
+    auto it = view.columns.find(column_name);
+    if (it == view.columns.end()) {
+        response->set_success(false);
+        response->set_message("Column not found: " + column_name);
+        return Status::OK;
+    }
+    
+    // Calculate the sum
+    double sum = 0.0;
+    const auto& values = it->second;
+    
+    for (const auto& value_str : values) {
+        try {
+            // Convert string to double and add to sum
+            double value = std::stod(value_str);
+            sum += value;
+        } catch (const std::exception& e) {
+            // Skip non-numeric values
+            std::cerr << "Warning: Non-numeric value in column " << column_name << ": " << value_str << std::endl;
+        }
+    }
+    
     response->set_success(true);
-    response->set_message("Sum calculation stub.");
-    response->set_value(0.0); // Default value
+    response->set_message("Sum calculated successfully");
+    response->set_value(sum);
+    
     return Status::OK;
 }
 
 // Stub for ComputeAverage
 Status CsvServiceImpl::ComputeAverage(ServerContext* context, const csvservice::ColumnOperationRequest* request, csvservice::NumericResponse* response) {
-    std::cout << "[Stub] ComputeAverage called." << std::endl;
-    // TODO: Implement average logic using state_->view()
+    const std::string& filename = request->filename();
+    const std::string& column_name = request->column_name();
+    
+    std::cout << "ComputeAverage called for file: " << filename << ", column: " << column_name << std::endl;
+    
+    // Get a view of the file data from the state machine
+    TableView view = state_->view(filename);
+    
+    if (view.empty()) {
+        response->set_success(false);
+        response->set_message("File not found: " + filename);
+        return Status::OK;
+    }
+    
+    // Check if the column exists
+    auto it = view.columns.find(column_name);
+    if (it == view.columns.end()) {
+        response->set_success(false);
+        response->set_message("Column not found: " + column_name);
+        return Status::OK;
+    }
+    
+    // Calculate the average
+    double sum = 0.0;
+    const auto& values = it->second;
+    int valid_count = 0;
+    
+    for (const auto& value_str : values) {
+        try {
+            // Convert string to double and add to sum
+            double value = std::stod(value_str);
+            sum += value;
+            valid_count++;
+        } catch (const std::exception& e) {
+            // Skip non-numeric values
+            std::cerr << "Warning: Non-numeric value in column " << column_name << ": " << value_str << std::endl;
+        }
+    }
+    
+    // Check if we have any valid values
+    if (valid_count == 0) {
+        response->set_success(false);
+        response->set_message("No valid numeric values found in column: " + column_name);
+        response->set_value(0.0);
+        return Status::OK;
+    }
+    
+    // Calculate average
+    double average = sum / valid_count;
+    
     response->set_success(true);
-    response->set_message("Average calculation stub.");
-    response->set_value(0.0); // Default value
+    response->set_message("Average calculated successfully");
+    response->set_value(average);
+    
     return Status::OK;
 }
 
@@ -489,23 +572,21 @@ Status CsvServiceImpl::GetClusterStatus(ServerContext* context, const csvservice
      // response->add_server_addresses(registry_.get_self_address());
      response->set_active_server_count(count); // Use correct field name
      response->set_success(true);
-     response->set_message("Cluster status fetched (stub)");
+     response->set_message("Cluster status fetched (stub)."); // Added semicolon
      return Status::OK;
 }
 
 // Stub for get_loaded_files (Internal helper used by menu.cpp)
 // Match return type from header: const std::unordered_map<std::string, ColumnStore>&
 const std::unordered_map<std::string, ColumnStore>& CsvServiceImpl::get_loaded_files() const {
-    std::cout << "[Stub] get_loaded_files called." << std::endl;
-    // TODO: Implement actual logic to get files from state_
+    std::cout << "get_loaded_files called." << std::endl;
+    
     auto* mem_state = dynamic_cast<const InMemoryStateMachine*>(state_.get());
     if (mem_state) {
-        // Assuming InMemoryStateMachine has a method returning the map ref:
-        // return mem_state->get_all_files(); 
-        // For the stub, return a static empty map to match the signature
-        static const std::unordered_map<std::string, ColumnStore> empty_map;
-        return empty_map;
+        // Use the get_files() method from InMemoryStateMachine to get the actual files
+        return mem_state->get_files();
     }
+    
     // Return static empty map if state machine not available
     static const std::unordered_map<std::string, ColumnStore> empty_map_fallback;
     return empty_map_fallback;

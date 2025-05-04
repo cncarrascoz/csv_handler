@@ -23,12 +23,18 @@ template<typename StubMethod, typename RequestType, typename ResponseType>
 Status CsvClient::MakeRpcCallWithRetry(
     StubMethod method_ptr,
     const RequestType& request,
-    ResponseType* response
+    ResponseType* response,
+    bool debug_output
 ) {
-    std::cout << "[RPC Debug] Entering MakeRpcCallWithRetry for method." << std::endl;
+    if (debug_output) {
+        std::cout << "[RPC Debug] Entering MakeRpcCallWithRetry for method." << std::endl;
+    }
+    
     // 1. Ensure connection
     if (!stub_) {
-        std::cout << "[RPC Debug] No active stub. Attempting connect()..." << std::endl;
+        if (debug_output) {
+            std::cout << "[RPC Debug] No active stub. Attempting connect()..." << std::endl;
+        }
         if (!connect()) {
             // Return specific status if connection failed entirely
             return Status(grpc::StatusCode::UNAVAILABLE, "Cannot make RPC call, no connection available.");
@@ -48,20 +54,26 @@ Status CsvClient::MakeRpcCallWithRetry(
     context.set_deadline(deadline);
 
     // Call the gRPC method using the provided pointer-to-member function
-    std::cout << "[RPC Debug] Attempting RPC on current server: " << current_server_address_ << std::endl;
+    if (debug_output) {
+        std::cout << "[RPC Debug] Attempting RPC on current server: " << current_server_address_ << std::endl;
+    }
     Status status = (stub_.get()->*method_ptr)(&context, request, response);
 
     // 3. Handle failure and potential retry
     if (!status.ok()) {
-        std::cerr << "Initial RPC failed on " << current_server_address_ << ": "
-                  << status.error_code() << ": " << status.error_message() << std::endl;
+        if (debug_output) {
+            std::cerr << "Initial RPC failed on " << current_server_address_ << ": "
+                      << status.error_code() << ": " << status.error_message() << std::endl;
+        }
 
         // Check if the error warrants a retry (connection/timeout issues)
         if (status.error_code() == grpc::StatusCode::UNAVAILABLE ||
             status.error_code() == grpc::StatusCode::DEADLINE_EXCEEDED ||
             status.error_code() == grpc::StatusCode::INTERNAL) { // Also retry on some internal errors?
 
-            std::cout << "[RPC Debug] Retrying RPC call after failure. Attempting connect() for new server..." << std::endl;
+            if (debug_output) {
+                std::cout << "[RPC Debug] Retrying RPC call after failure. Attempting connect() for new server..." << std::endl;
+            }
             // connect() tries the next available server
             if (connect()) {
                  // Ensure stub is valid after reconnect attempt
@@ -75,22 +87,32 @@ Status CsvClient::MakeRpcCallWithRetry(
                     std::chrono::system_clock::now() + std::chrono::seconds(5); // Use same timeout for retry
                 retry_context.set_deadline(retry_deadline);
 
-                std::cout << "[RPC Debug] Retrying RPC on newly connected server: " << current_server_address_ << "..." << std::endl;
+                if (debug_output) {
+                    std::cout << "[RPC Debug] Retrying RPC on newly connected server: " << current_server_address_ << "..." << std::endl;
+                }
                 // Retry the call
                 status = (stub_.get()->*method_ptr)(&retry_context, request, response);
 
                 if (!status.ok()) {
-                    std::cerr << "Retry failed on " << current_server_address_ << ": "
-                              << status.error_code() << ": " << status.error_message() << std::endl;
+                    if (debug_output) {
+                        std::cerr << "Retry failed on " << current_server_address_ << ": "
+                                  << status.error_code() << ": " << status.error_message() << std::endl;
+                    }
                 } else {
-                     std::cout << "[RPC Debug] Retry successful on " << current_server_address_ << "." << std::endl;
+                    if (debug_output) {
+                        std::cout << "[RPC Debug] Retry successful on " << current_server_address_ << "." << std::endl;
+                    }
                 }
             } else {
-                std::cerr << "[RPC Debug] Failed to reconnect to any server during retry. Aborting." << std::endl;
+                if (debug_output) {
+                    std::cerr << "[RPC Debug] Failed to reconnect to any server during retry. Aborting." << std::endl;
+                }
                 // Keep the original error status if reconnection failed
             }
         } else {
-             std::cout << "Non-retryable error encountered." << std::endl;
+            if (debug_output) {
+                std::cout << "Non-retryable error encountered." << std::endl;
+            }
         }
     }
 
@@ -221,7 +243,7 @@ bool CsvClient::try_reconnect() {
 bool CsvClient::TestConnection() {
     Empty request;
     CsvFileList reply;
-    Status status = MakeRpcCallWithRetry(&CsvService::Stub::ListLoadedFiles, request, &reply);
+    Status status = MakeRpcCallWithRetry(&CsvService::Stub::ListLoadedFiles, request, &reply, false);
     if (!status.ok()) {
         std::cerr << "TestConnection failed: " << status.error_code() << ": " 
                   << status.error_message() << std::endl;
@@ -230,10 +252,10 @@ bool CsvClient::TestConnection() {
 }
 
 // Get cluster status from the server
-bool CsvClient::get_cluster_status(std::string& leader, std::vector<std::string>& servers, int& active_count) {
+bool CsvClient::get_cluster_status(std::string& leader, std::vector<std::string>& servers, int& active_count, bool debug_output) {
     Empty request;
     ClusterStatusResponse response;
-    Status status = MakeRpcCallWithRetry(&CsvService::Stub::GetClusterStatus, request, &response);
+    Status status = MakeRpcCallWithRetry(&CsvService::Stub::GetClusterStatus, request, &response, debug_output);
     
     if (status.ok()) {
         leader = response.leader_address();
@@ -242,10 +264,15 @@ bool CsvClient::get_cluster_status(std::string& leader, std::vector<std::string>
             servers.push_back(server);
         }
         active_count = response.active_server_count(); // Correct field name
+        if (debug_output) {
+            std::cout << "Cluster status: Leader=" << leader << ", Active servers=" << active_count << std::endl;
+        }
         return true;
     } else {
-        std::cerr << "GetClusterStatus failed: " << status.error_code() << ": " 
-                  << status.error_message() << " on " << current_server_address_ << std::endl;
+        if (debug_output) {
+            std::cerr << "GetClusterStatus failed: " << status.error_code() << ": " 
+                      << status.error_message() << " on " << current_server_address_ << std::endl;
+        }
         return false;
     }
 }
@@ -272,7 +299,7 @@ bool CsvClient::UploadCsv(const std::string& filename) {
     request.set_csv_data(file_contents);
 
     CsvUploadResponse response;
-    Status status = MakeRpcCallWithRetry(&CsvService::Stub::UploadCsv, request, &response);
+    Status status = MakeRpcCallWithRetry(&CsvService::Stub::UploadCsv, request, &response, false);
 
     if (status.ok()) {
         std::cout << "Upload successful: " << response.message() << std::endl;
@@ -290,7 +317,7 @@ bool CsvClient::UploadCsv(const std::string& filename) {
 void CsvClient::ListFiles() {
     Empty request;
     CsvFileList reply;
-    Status status = MakeRpcCallWithRetry(&CsvService::Stub::ListLoadedFiles, request, &reply);
+    Status status = MakeRpcCallWithRetry(&CsvService::Stub::ListLoadedFiles, request, &reply, false);
 
     if (status.ok()) {
         std::cout << "Loaded files on server (" << current_server_address_ << "):" << std::endl;
@@ -313,7 +340,7 @@ void CsvClient::ViewFile(const std::string& filename) {
     request.set_filename(filename);
     ViewFileResponse response;
     // Call the RPC using the helper function
-    Status status = MakeRpcCallWithRetry(&CsvService::Stub::ViewFile, request, &response);
+    Status status = MakeRpcCallWithRetry(&CsvService::Stub::ViewFile, request, &response, false);
     
     if (status.ok()) {
         if (response.success()) {
@@ -351,7 +378,7 @@ void CsvClient::ComputeSum(const std::string& filename, const std::string& colum
     request.set_column_name(column_name);
     
     NumericResponse response;
-    Status status = MakeRpcCallWithRetry(&CsvService::Stub::ComputeSum, request, &response);
+    Status status = MakeRpcCallWithRetry(&CsvService::Stub::ComputeSum, request, &response, false);
     
     if (status.ok()) {
         if (response.success()) {
@@ -374,7 +401,7 @@ void CsvClient::ComputeAverage(const std::string& filename, const std::string& c
     request.set_column_name(column_name);
     
     NumericResponse response;
-    Status status = MakeRpcCallWithRetry(&CsvService::Stub::ComputeAverage, request, &response);
+    Status status = MakeRpcCallWithRetry(&CsvService::Stub::ComputeAverage, request, &response, false);
     
     if (status.ok()) {
         if (response.success()) {
@@ -399,7 +426,7 @@ bool CsvClient::InsertRow(const std::string& filename, const std::vector<std::st
     }
     
     ModificationResponse response;
-    Status status = MakeRpcCallWithRetry(&CsvService::Stub::InsertRow, request, &response);
+    Status status = MakeRpcCallWithRetry(&CsvService::Stub::InsertRow, request, &response, false);
     
     if (status.ok()) {
         std::cout << "InsertRow successful for " << filename << " on server " << current_server_address_ << ": " << response.message() << std::endl;
@@ -419,7 +446,7 @@ void CsvClient::DeleteRow(const std::string& filename, int row_index) {
     request.set_row_index(row_index);
     
     ModificationResponse response;
-    Status status = MakeRpcCallWithRetry(&CsvService::Stub::DeleteRow, request, &response);
+    Status status = MakeRpcCallWithRetry(&CsvService::Stub::DeleteRow, request, &response, false);
     
     if (status.ok()) {
         std::cout << "DeleteRow successful for " << filename << ", row " << row_index << " on server " << current_server_address_ << ": " << response.message() << std::endl;
@@ -431,13 +458,13 @@ void CsvClient::DeleteRow(const std::string& filename, int row_index) {
 }
 
 // Helper function to fetch file content from server using retry logic
-std::string CsvClient::FetchFileContent(const std::string& filename) {
+std::string CsvClient::FetchFileContent(const std::string& filename, bool debug_output) {
     ViewFileRequest request;
     request.set_filename(filename);
     ViewFileResponse response;
 
     // Use the retry helper
-    Status status = MakeRpcCallWithRetry(&CsvService::Stub::ViewFile, request, &response);
+    Status status = MakeRpcCallWithRetry(&CsvService::Stub::ViewFile, request, &response, debug_output);
 
     if (status.ok() && response.success()) {
         // Format the data into a single string representation
@@ -454,10 +481,19 @@ std::string CsvClient::FetchFileContent(const std::string& filename) {
             }
             rows.push_back(row);
         }
+        if (debug_output) {
+            std::cout << "Fetched content for " << filename << " from server " << current_server_address_ << std::endl;
+        }
         return ::file_utils::format_csv_as_table(column_names, rows);
     } else if (!status.ok()) {
+        if (debug_output) {
+            std::cerr << "Error: RPC failed fetching content for " << filename << " from " << current_server_address_ << ": " << status.error_message() << std::endl;
+        }
         return "Error: RPC failed fetching content for " + filename + " from " + current_server_address_ + ": " + status.error_message();
     } else { // status.ok() but !response.success()
+        if (debug_output) {
+            std::cerr << "Error: Server error fetching content for " << filename << " from " << current_server_address_ << ": " << response.message() << std::endl;
+        }
         return "Error: Server error fetching content for " + filename + " from " + current_server_address_ + ": " + response.message();
     }
 }
@@ -468,14 +504,14 @@ void CsvClient::DisplayThreadFunction(DisplayThreadInfo* thread_info) {
  
     // Periodically update the display 
     while (thread_info->running.load()) { 
-        // Fetch cluster status 
+        // Fetch cluster status - suppress debug messages for background polling
         std::string leader; 
         std::vector<std::string> servers; 
         int active_count = 0; 
-        get_cluster_status(leader, servers, active_count); 
+        get_cluster_status(leader, servers, active_count, false); // Add false flag to suppress debug output
  
-        // Fetch file content from server 
-        std::string current_content = FetchFileContent(thread_info->filename); 
+        // Fetch file content from server - suppress debug messages for background polling
+        std::string current_content = FetchFileContent(thread_info->filename, false); // Add false flag to suppress debug output
  
         // Combine status and content 
         std::stringstream display_output; 
