@@ -99,3 +99,6 @@ target_link_libraries(client
     gRPC::grpc
     protobuf::libprotobuf
 )
+
+# Add tests subdirectory
+add_subdirectory(tests)
