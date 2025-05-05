@@ -13,11 +13,29 @@ Key features of the system include:
 - **Fault Tolerance:** The system can continue operating even if some servers fail, with automatic leader failover.
 - **Extensible Command Interface:** A modular, extensible command interface for data manipulation and analysis.
 
-## 2. Architecture
+## 2. System Architecture
+
+The system follows a layered architecture with clear separation of concerns:
+
+### Core Architecture
 
 - **Distributed Columnstore Database:** The system has evolved from a simple CSV handler to a distributed column-oriented database with fault tolerance and high availability.
 
-- **State Machine Architecture:** The system uses a state machine abstraction (`IStateMachine` interface) that allows for different implementations (in-memory, durable, distributed) while maintaining a consistent interface for the server logic.
+- **State Machine Architecture:** The system uses a state machine abstraction (`IStateMachine` interface) that allows for different implementations while maintaining a consistent interface for the server logic:
+
+```cpp
+class IStateMachine {
+public:
+    virtual void apply(const Mutation& mutation) = 0;
+    virtual TableView view(const std::string& file) const = 0;
+    virtual ~IStateMachine() = default;
+};
+```
+
+This approach enables three key implementations:
+1. **InMemoryStateMachine**: The primary implementation that stores data in memory.
+2. **DurableStateMachine**: An implementation that uses the Write-Ahead Log (WAL) and snapshots for durability.
+3. **Distributed State Machine**: Achieved through the leader-follower model where mutations are replicated across servers.
 
 - **Raft-inspired Consensus:** A simplified version of the Raft consensus algorithm is used for leader election and data replication across the cluster. This ensures consistency and fault tolerance.
 
@@ -29,7 +47,109 @@ Key features of the system include:
 
 - **Columnar Storage:** Data is stored in a column-oriented format (map of column names to vectors of values), optimized for analytical queries.
 
-- **Separation of Concerns:** Clear separation between interface, command processing, network communication, consensus, and storage logic.
+### Layered Design
+
+The codebase is organized into logical layers:
+
+#### Core Layer
+- `core/IStateMachine.hpp`: Abstract interface for state management
+- `core/Mutation.hpp`: Defines data modification operations
+- `core/TableView.hpp`: Read-only view abstraction
+
+#### Storage Layer
+- `storage/InMemoryStateMachine.hpp/cpp`: In-memory implementation of IStateMachine
+- Replaced previous `column_store` implementation with a more extensible design
+
+#### Persistence Layer
+- `persistence/WriteAheadLog.hpp/cpp`: Log for recording mutations before they're applied
+- `persistence/Snapshot.hpp/cpp`: Mechanism for capturing and restoring state
+- `persistence/DurableStateMachine.hpp/cpp`: Persistent state machine implementation
+
+#### Distributed Layer
+- `distributed/raft_node.hpp/cpp`: Implementation of the Raft consensus algorithm
+- `distributed/heartbeat.hpp/cpp`: Node health monitoring and communication
+
+### Design Patterns
+
+The project follows these key architectural principles:
+
+1. **Command Pattern**: Commands are represented as strings mapped to handler functions, making it easy to add new commands.
+
+2. **Separation of Concerns**:
+   - `menu.cpp/hpp`: User interface handling
+   - `csv_client.cpp/hpp` & `csv_service_impl.cpp/hpp`: Network communication
+   - `column_store.cpp/hpp`: Data storage and analytics
+   - `csv_parser.cpp/hpp`: Parsing and data conversion
+   - `file_utils.cpp/hpp`: File handling and output formatting
+
+3. **Extensibility**: New commands can be added by:
+   - Creating new handler functions
+   - Registering them with the menu system
+   - Implementing any required backend logic
+
+4. **User Interface Enhancements**:
+   - Table formatting for CSV data display with:
+     - Plus signs (+) at corners and intersections
+     - Dashes (-) for horizontal borders
+     - Vertical bars (|) for column separators
+     - Proper spacing and alignment of data
+
+### Distributed System Components
+
+#### Mutation System
+
+The system uses a custom `Mutation` struct to represent state-changing operations:
+
+```cpp
+struct Mutation {
+    std::string file;
+    std::variant<RowInsert, RowDelete> op;
+    
+    bool has_insert() const { return std::holds_alternative<RowInsert>(op); }
+    bool has_delete() const { return std::holds_alternative<RowDelete>(op); }
+};
+```
+
+This design provides type safety and extensibility for adding new mutation types in the future.
+
+#### Write-Ahead Log (WAL)
+
+The system includes a fully implemented Write-Ahead Log (WAL) that enables durability:
+
+- Mutations are first written to the log before being applied to the state machine
+- This ensures that no data is lost in case of system crashes
+- The WAL can be replayed during system restart to recover the state
+- Fully implemented and operational in the current version
+
+#### Snapshot Mechanism
+
+For efficient recovery and state transfer, a snapshot mechanism is fully implemented:
+
+- Periodically captures the entire state of the system
+- Allows for faster recovery than replaying the entire log
+- Serves as a baseline for new nodes joining the cluster
+- Snapshots are automatically created after a configurable number of mutations
+- Fully implemented and operational in the current version
+
+#### Distributed Consensus with Raft
+
+The system implements distributed operation using a Raft-inspired consensus algorithm:
+
+- Leader election and automatic failover
+- Data replication across multiple nodes
+- Support for different server roles (LEADER, FOLLOWER)
+- Health monitoring and communication between nodes
+- State replication across multiple nodes for fault tolerance
+
+#### Benefits
+
+This architecture provides several benefits:
+
+1. **Reliability**: Durability through the WAL and snapshots
+2. **Scalability**: Distribute load across multiple nodes
+3. **Fault Tolerance**: Continue operation even if some nodes fail
+4. **Consistency**: Strong consistency guarantees through Raft consensus
+5. **Backward Compatibility**: All existing client functionality continues to work
 
 ## 3. Features
 
@@ -47,7 +167,7 @@ The system supports the following commands through its interactive menu interfac
 - **exit**: Exit the program
 - **help**: Display help information about available commands
 
-The **display** command opens a new terminal window that shows the file content and automatically updates when the file changes on the server. This provides a real-time view that's useful for monitoring data that's being modified by other clients.
+The **display** command opens a new terminal window that shows the file content and automatically updates when the file changes on the server. This provides a real-time view that's useful for monitoring data that's being modified by other clients. The feature uses a background thread to poll for changes, maintains proper synchronization with mutex locks, and provides visual indication of data modifications as they happen.
 
 ### Server Commands
 The server also has an interactive interface with these commands:
@@ -56,6 +176,11 @@ The server also has an interactive interface with these commands:
 - **stats [filename]**: Show statistics for all files or a specific file
 - **exit**: Shutdown the server
 - **help**: Display help information
+
+### Client Enhancements
+- Real-time display functionality with live updates
+- Connection health checking
+- Improved error handling and retry logic
 
 ## 4. Dependencies
 
@@ -126,6 +251,13 @@ csv_handler/
 ├── utils/          # Utility functions
 │   ├── file_utils.cpp            # File reading utilities
 │   └── file_utils.hpp            # Header for file utilities
+├── tests/          # Test suite
+│   ├── test_client_server.cpp    # Client-server communication tests
+│   ├── test_columnstore_operations.cpp # Columnstore operations tests
+│   ├── test_data_mutation.cpp    # Data mutation tests
+│   ├── test_persistence.cpp      # Persistence tests
+│   ├── test_replication_and_failover.cpp # Replication and failover tests
+│   └── test_invalid_cases.cpp    # Invalid cases tests
 ├── CMakeLists.txt               # CMake build configuration
 └── README.md                    # This file
 ```
@@ -235,50 +367,65 @@ csv_handler/
             ```
             Example: `./client localhost:50051`
 
-## 8. Distributed Usage
+## 8. Distributed Usage and Deployment
 
 The system supports a distributed architecture with multiple servers forming a cluster for fault tolerance and high availability. Data is automatically replicated across the cluster using a simplified Raft-inspired consensus algorithm.
 
-1.  **Cluster Setup:**
-    *   Start multiple server instances, each with a unique address and knowledge of its peers:
-        ```bash
-        # Start the first server (will become leader by default)
-        ./server localhost:50051 localhost:50052 localhost:50053
-        
-        # Start the second server in another terminal
-        ./server localhost:50052 localhost:50051 localhost:50053
-        
-        # Start the third server in another terminal
-        ./server localhost:50053 localhost:50051 localhost:50052
-        ```
-    *   Each server needs its own address as the first argument, followed by the addresses of all other servers in the cluster.
-    *   The servers will automatically establish connections with each other and elect a leader (by default, the server with the lexicographically smallest address).
+### Cluster Setup
 
-2.  **Client Connection to the Cluster:**
-    *   Connect a client to any server in the cluster:
-        ```bash
-        ./client localhost:50051
-        ```
-    *   Clients can connect to any server in the cluster. Non-leader servers will automatically forward requests to the current leader.
-    *   For command-line mode, specify the command after the server address:
-        ```bash
-        ./client localhost:50051 upload test_data.csv
-        ```
+*   Start multiple server instances, each with a unique address and knowledge of its peers:
+    ```bash
+    # Start the first server (will become leader by default)
+    ./server localhost:50051 localhost:50052 localhost:50053
+    
+    # Start the second server in another terminal
+    ./server localhost:50052 localhost:50051 localhost:50053
+    
+    # Start the third server in another terminal
+    ./server localhost:50053 localhost:50051 localhost:50052
+    ```
+*   Each server needs its own address as the first argument, followed by the addresses of all other servers in the cluster.
+*   The servers will automatically establish connections with each other and elect a leader (by default, the server with the lexicographically smallest address).
 
-3.  **Fault Tolerance and Leader Election:**
-    *   If the leader server fails, the remaining servers will automatically detect the failure and elect a new leader.
-    *   Clients connected to the failed leader will need to reconnect to another server.
-    *   Data uploaded before the leader failure is preserved and accessible through the new leader.
+### Client Connection to the Cluster
 
-4.  **Data Replication:**
-    *   When a client uploads a file or makes changes to data on the leader, those changes are automatically replicated to all follower servers.
-    *   This ensures that if the leader fails, the new leader will have the most up-to-date data.
-    *   The replication process is transparent to clients.
+*   Connect a client to any server in the cluster:
+    ```bash
+    ./client localhost:50051
+    ```
+*   Clients can connect to any server in the cluster. Non-leader servers will automatically forward requests to the current leader.
+*   For command-line mode, specify the command after the server address:
+    ```bash
+    ./client localhost:50051 upload test_data.csv
+    ```
 
-5.  **Network Considerations:**
-    *   All servers must be able to communicate with each other directly.
-    *   For a production deployment across different networks, you may need to configure appropriate firewall rules and network routing.
-    *   For security in production environments, consider implementing authentication and encryption.
+### Fault Tolerance and Leader Election
+
+*   If the leader server fails, the remaining servers will automatically detect the failure and elect a new leader.
+*   Clients connected to the failed leader will need to reconnect to another server.
+*   Data uploaded before the leader failure is preserved and accessible through the new leader.
+
+### Persistence and Recovery
+
+*   The system now implements disk persistence, ensuring data survives server restarts.
+*   All mutations (inserts, deletes) are logged to a Write-Ahead Log (WAL) before being applied.
+*   Periodic snapshots are created to optimize recovery time.
+*   On server startup, the system automatically recovers its state from disk (snapshots and WAL).
+*   The persistence mechanism operates as a "sidecar" process alongside the in-memory state machine.
+*   No special commands are needed - persistence happens automatically in the background.
+
+### Data Replication
+
+*   When a client uploads a file or makes changes to data on the leader, those changes are automatically replicated to all follower servers.
+*   Changes are also persisted to disk on each server, ensuring durability even in case of complete cluster failure.
+*   This ensures that if the leader fails, the new leader will have the most up-to-date data.
+*   The replication and persistence processes are transparent to clients.
+
+### Network Considerations
+
+*   All servers must be able to communicate with each other directly.
+*   For a production deployment across different networks, you may need to configure appropriate firewall rules and network routing.
+*   For security in production environments, consider implementing authentication and encryption.
 
 ## 9. Example CSV Format and Operations
 
@@ -328,9 +475,7 @@ ID,Value1,Value2
    > delete test_data.csv 2
    ```
 
-## 10. Server Internals: Parsing and Storage
-
-### Column Store Structure
+## 10. Column Store Structure
 
 Data is stored in the `ColumnStore` structure defined in `storage/column_store.hpp`:
 
@@ -351,192 +496,75 @@ The system provides these operations on the column store:
 - `insert_row`: Add a new row to the store
 - `delete_row`: Remove a row from the store
 
-## 11. Architecture and Design Patterns
+## 11. Test Suite
 
-The project follows these key architectural principles:
+The project includes a comprehensive test suite that validates the functionality of the distributed columnstore database system. The tests are located in the `csv_handler/tests/` directory and cover various aspects of the system's functionality.
 
-1. **Command Pattern**: Commands are represented as strings mapped to handler functions, making it easy to add new commands.
+### Test Categories
 
-2. **Separation of Concerns**:
-   - `menu.cpp/hpp`: User interface handling
-   - `csv_client.cpp/hpp` & `csv_service_impl.cpp/hpp`: Network communication
-   - `column_store.cpp/hpp`: Data storage and analytics
-   - `csv_parser.cpp/hpp`: Parsing and data conversion
-   - `file_utils.cpp/hpp`: File handling and output formatting
+1. **Client-Server Communication Tests** (`test_client_server.cpp`):
+   - Tests basic client-server connectivity
+   - Validates file upload functionality
+   - Tests column operations through the client interface
+   - Verifies data mutation operations
+   - Tests multi-server connection scenarios
 
-3. **Extensibility**: New commands can be added by:
-   - Creating new handler functions
-   - Registering them with the menu system
-   - Implementing any required backend logic
+2. **Columnstore Operations Tests** (`test_columnstore_operations.cpp`):
+   - Tests sum operations on numeric columns
+   - Tests average operations on numeric columns
+   - Validates error handling for operations on non-numeric columns
+   - Tests operations on non-existent columns
 
-4. **User Interface Enhancements**:
-   - Table formatting for CSV data display with:
-     - Plus signs (+) at corners and intersections
-     - Dashes (-) for horizontal borders
-     - Vertical bars (|) for column separators
-     - Proper spacing and alignment of data
+3. **Data Mutation Tests** (`test_data_mutation.cpp`):
+   - Tests row insertion functionality
+   - Validates error handling for invalid data insertions
+   - Tests row deletion functionality
+   - Validates error handling for invalid row deletion operations
 
-This architecture facilitates the future addition of distributed features (e.g., automatic CSV reprinting when files change) with minimal refactoring.
+4. **Persistence Tests** (`test_persistence.cpp`):
+   - Tests basic persistence of data across server restarts
+   - Validates persistence of data mutations
+   - Tests server restart behavior
 
-## 12. Codebase Architecture
+5. **Replication and Failover Tests** (`test_replication_and_failover.cpp`):
+   - Tests basic data replication across servers
+   - Validates leader election after leader failure
+   - Tests system behavior during follower server failures
 
-The codebase has been refactored with a more structured, layered architecture:
+6. **Invalid Cases Tests** (`test_invalid_cases.cpp`):
+   - Tests error handling for connection to non-existent servers
+   - Validates error handling for operations on non-existent files
+   - Tests error handling for invalid column operations
+   - Validates error handling for invalid row operations
 
-### Core Layer
-- `core/IStateMachine.hpp`: Abstract interface for state management
-- `core/Mutation.hpp`: Defines data modification operations
-- `core/TableView.hpp`: Read-only view abstraction
+### Running the Tests
 
-### Storage Layer
-- `storage/InMemoryStateMachine.hpp/cpp`: In-memory implementation of IStateMachine
-- Replaced previous `column_store` implementation with a more extensible design
+To build and run the tests:
 
-### Persistence Layer
-- `persistence/WriteAheadLog.hpp/cpp`: Log for recording mutations before they're applied
-- `persistence/Snapshot.hpp/cpp`: Mechanism for capturing and restoring state
-- `persistence/DurableStateMachine.hpp/cpp`: Persistent state machine implementation
+```bash
+# Navigate to the tests directory
+cd csv_handler/tests
 
-### Distributed Layer
-- `distributed/raft_node.hpp/cpp`: Implementation of the Raft consensus algorithm
-- `distributed/heartbeat.hpp/cpp`: Node health monitoring and communication
+# Create a build directory
+mkdir -p build
+cd build
 
-### Client Enhancements
-- Real-time display functionality with live updates
-- Connection health checking
-- Improved error handling and retry logic
+# Configure with CMake
+cmake ..
 
-## 13. State Machine Architecture
+# Build the tests
+make
 
-At the core of the system is the `IStateMachine` interface, which abstracts the underlying storage mechanism:
+# Run individual tests
+./test_client_server
+./test_columnstore_operations
+./test_data_mutation
+./test_persistence
+./test_replication_and_failover
+./test_invalid_cases
 
-```cpp
-class IStateMachine {
-public:
-    virtual void apply(const Mutation& mutation) = 0;
-    virtual TableView view(const std::string& file) const = 0;
-    virtual ~IStateMachine() = default;
-};
+# Or run all tests in sequence
+./test_client_server && ./test_columnstore_operations && ./test_data_mutation && ./test_persistence && ./test_replication_and_failover && ./test_invalid_cases
 ```
 
-This approach allows for different implementations of the state machine while maintaining a consistent interface for the server logic:
-
-1. **InMemoryStateMachine**: The current primary implementation that stores data in memory without persistence.
-2. **DurableStateMachine**: An implementation that uses the Write-Ahead Log (WAL) and snapshots for durability.
-3. **Distributed State Machine**: Achieved through the leader-follower model where mutations are replicated across servers.
-
-### Mutation System
-
-The system uses a custom `Mutation` struct to represent state-changing operations:
-
-```cpp
-struct Mutation {
-    std::string file;
-    std::variant<RowInsert, RowDelete> op;
-    
-    bool has_insert() const { return std::holds_alternative<RowInsert>(op); }
-    bool has_delete() const { return std::holds_alternative<RowDelete>(op); }
-};
-```
-
-This design provides type safety and extensibility for adding new mutation types in the future.
-
-### Leader-Follower Replication
-
-The system uses a leader-follower model for replication:
-
-1. **Leader Election**: The `ServerRegistry` implements a deterministic leader election algorithm that selects the lexicographically smallest server address as the leader.
-2. **Request Forwarding**: Non-leader nodes forward client requests to the current leader.
-3. **Mutation Replication**: When a leader applies a mutation to its state machine, it replicates the mutation to all followers.
-4. **Fault Detection**: The `health_check_thread` periodically checks the health of all servers and triggers a new election if the leader fails.
-
-This architecture ensures that all servers eventually have a consistent view of the data, even in the presence of server failures.
-
-## 14. Future Distributed Version
-
-The system has been refactored with a state machine architecture that enables future durability and distributed features:
-
-### State Machine Architecture
-
-At the core of the system is the `IStateMachine` interface, which abstracts the underlying storage mechanism:
-
-```cpp
-class IStateMachine {
-public:
-    virtual void apply(const Mutation& mutation) = 0;
-    virtual TableView view(const std::string& file) const = 0;
-    virtual ~IStateMachine() = default;
-};
-```
-
-This approach allows for different implementations of the state machine while maintaining a consistent interface for the server logic:
-
-1. **InMemoryStateMachine**: The current primary implementation that stores data in memory without persistence.
-2. **DurableStateMachine**: An implementation that uses the Write-Ahead Log (WAL) and snapshots for durability.
-3. **Distributed State Machine**: Achieved through the leader-follower model where mutations are replicated across servers.
-
-### Mutation System
-
-The system uses a custom `Mutation` struct to represent state-changing operations:
-
-```cpp
-struct Mutation {
-    std::string file;
-    std::variant<RowInsert, RowDelete> op;
-    
-    bool has_insert() const { return std::holds_alternative<RowInsert>(op); }
-    bool has_delete() const { return std::holds_alternative<RowDelete>(op); }
-};
-```
-
-This design provides type safety and extensibility for adding new mutation types in the future.
-
-### Write-Ahead Log (WAL)
-
-The system includes a Write-Ahead Log (WAL) implementation that will enable durability:
-
-- Mutations are first written to the log before being applied to the state machine
-- This ensures that no data is lost in case of system crashes
-- The WAL can be replayed during system restart to recover the state
-
-### Snapshot Mechanism
-
-For efficient recovery and state transfer, a snapshot mechanism is included:
-
-- Periodically captures the entire state of the system
-- Allows for faster recovery than replaying the entire log
-- Serves as a baseline for new nodes joining the cluster
-
-### Distributed Consensus with Raft
-
-The system is prepared for distributed operation using the Raft consensus algorithm:
-
-- `RaftNode` implements the core Raft protocol (leader election, log replication)
-- `HeartbeatManager` provides node health monitoring and communication
-- Support for different server roles (LEADER, FOLLOWER, CANDIDATE, STANDALONE)
-- State replication across multiple nodes for fault tolerance
-
-These components are currently implemented as stubs and will be fully activated in future releases. The current implementation defaults to STANDALONE mode, which operates similarly to the previous single-server architecture.
-
-### Benefits
-
-This architecture provides several benefits:
-
-1. **Reliability**: Durability through the WAL and snapshots
-2. **Scalability**: Distribute load across multiple nodes
-3. **Fault Tolerance**: Continue operation even if some nodes fail
-4. **Consistency**: Strong consistency guarantees through Raft consensus
-5. **Backward Compatibility**: All existing client functionality continues to work
-
-To use the distributed features in future releases, multiple instances of the server can be started with appropriate configuration to form a cluster.
-
-### Real-Time Display Feature
-
-The newly added display feature demonstrates the extensibility of the architecture:
-
-- Opens a new terminal window with real-time view of the data
-- Updates automatically when data changes on the server
-- Uses a background thread to poll for changes
-- Maintains proper synchronization with mutex locks
-- Provides visual indication of data modifications as they happen
-
-This feature serves as a prototype for future real-time notification systems that could be implemented using the Raft protocol's log replication mechanism.
+The test suite ensures that the system functions correctly and handles error cases appropriately, providing a safety net for future development and refactoring.
